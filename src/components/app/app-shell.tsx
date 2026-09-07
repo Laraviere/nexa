@@ -4,7 +4,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 
 const navigation: ReadonlyArray<{ label: string; href?: string }> = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Customers" },
+  { label: "Customers", href: "/customers" },
   { label: "Services" },
   { label: "Time" },
   { label: "Invoices" },
