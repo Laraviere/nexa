@@ -39,6 +39,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      customer_billing_agreements: {
+        Row: {
+          bill_in_advance: boolean
+          billing_cycle_day: number
+          created_at: string
+          customer_id: string
+          effective_date: string
+          end_date: string | null
+          id: string
+          included_hours: number
+          is_active: boolean
+          monthly_fee: number
+          overage_hourly_rate: number
+          rollover_enabled: boolean
+          rounding_increment_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          bill_in_advance?: boolean
+          billing_cycle_day?: number
+          created_at?: string
+          customer_id: string
+          effective_date: string
+          end_date?: string | null
+          id?: string
+          included_hours: number
+          is_active?: boolean
+          monthly_fee: number
+          overage_hourly_rate: number
+          rollover_enabled?: boolean
+          rounding_increment_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          bill_in_advance?: boolean
+          billing_cycle_day?: number
+          created_at?: string
+          customer_id?: string
+          effective_date?: string
+          end_date?: string | null
+          id?: string
+          included_hours?: number
+          is_active?: boolean
+          monthly_fee?: number
+          overage_hourly_rate?: number
+          rollover_enabled?: boolean
+          rounding_increment_minutes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_billing_agreements_customer_fk"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           billing_address_line1: string | null

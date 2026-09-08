@@ -48,6 +48,7 @@ function harness() {
   };
   function signal(type, value) { throw Object.assign(new Error(type), { type, value }); }
   const overrides = {
+    "@/lib/billing/server": { getBillingAgreements: async () => [] },
     "server-only": {},
     "next/navigation": { redirect: (url) => signal("redirect", url), notFound: () => signal("notFound") },
     "next/cache": { revalidatePath: (...args) => revalidated.push(args) },

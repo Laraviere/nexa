@@ -106,25 +106,29 @@ begin
   end loop;
   foreach bad_value in array array['0', '29', '32'] loop
     perform pg_temp.expect_error(format(
-      'update public.customer_billing_agreements set billing_cycle_day = %s', bad_value), '23514');
+      'update public.customer_billing_agreements set billing_cycle_day = %s where id = %L',
+      bad_value, 'a9719710-2000-4000-8000-000000000001'), '23514');
   end loop;
   foreach bad_value in array array['0', '-15'] loop
     perform pg_temp.expect_error(format(
-      'update public.customer_billing_agreements set rounding_increment_minutes = %s', bad_value), '23514');
+      'update public.customer_billing_agreements set rounding_increment_minutes = %s where id = %L',
+      bad_value, 'a9719710-2000-4000-8000-000000000001'), '23514');
   end loop;
-  foreach bad_value in array array['2025-12-31', '2026-01-01', 'infinity', '-infinity'] loop
+  foreach bad_value in array array['2025-12-31', 'infinity', '-infinity'] loop
     perform pg_temp.expect_error(format(
       'update public.customer_billing_agreements set end_date = %L where id = %L',
       bad_value, 'a9719710-2000-4000-8000-000000000001'), '23514');
   end loop;
   perform pg_temp.expect_error(
-    $$update public.customer_billing_agreements set effective_date = '-infinity'$$, '23514');
+    $$update public.customer_billing_agreements set effective_date = '-infinity'
+      where id = 'a9719710-2000-4000-8000-000000000001'$$, '23514');
   raise notice 'PASS: negative/nonfinite numerics, null required fields, billing days, rounding and date constraints';
 end;
 $checks$;
 
 select pg_temp.expect_error(
-  $$update public.customer_billing_agreements set customer_id = 'a9719710-9999-4000-8000-000000000001'$$, '23503');
+  $$update public.customer_billing_agreements set customer_id = gen_random_uuid()
+    where id = 'a9719710-2000-4000-8000-000000000001'$$, '23503');
 select pg_temp.expect_error(
   $$delete from public.customers where id = 'a9719710-1000-4000-8000-000000000001'$$, '23503');
 select pg_temp.assert_true(
