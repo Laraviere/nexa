@@ -2,19 +2,25 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { createRetainer } from "@/actions/billing";
+import { changeBillingTerms, createRetainer } from "@/actions/billing";
+import { formatBillingDay, formatBusinessDate, type BillingAgreement } from "@/lib/billing/model";
 import type { BillingField, BillingFormState } from "@/lib/billing/validation";
 
 const inputClass = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-600/20";
-export function BillingForm({ customerId, today }: { customerId: string; today: string }) {
-  const [state, action, pending] = useActionState(createRetainer.bind(null, customerId), {} as BillingFormState);
-  const [endMode, setEndMode] = useState("until_cancellation");
+export function BillingForm({ customerId, today, agreement }: { customerId: string; today: string; agreement?: BillingAgreement }) {
+  const [state, action, pending] = useActionState(agreement
+    ? changeBillingTerms.bind(null, customerId, agreement.id)
+    : createRetainer.bind(null, customerId), {} as BillingFormState);
+  const [endMode, setEndMode] = useState(state.values?.end_mode ?? (agreement?.end_date ? "preserve_end" : "until_cancellation"));
+  const minimumEffective = agreement && agreement.effective_date > today ? agreement.effective_date : today;
   function field(name: BillingField, label: string, type: string, initial = "", required = false) {
     return (
       <div>
         <label htmlFor={name} className="mb-2 block text-sm font-medium">{label}{required ? " *" : ""}</label>
         <input id={name} name={name} type={type} inputMode={type === "text" ? "decimal" : undefined}
           defaultValue={state.values?.[name] ?? initial} required={required} className={inputClass}
+          min={type === "number" ? 1 : agreement && name === "effective_date" ? minimumEffective : undefined}
+          max={name === "billing_cycle_day" ? 28 : name === "end_date" ? agreement?.end_date ?? undefined : undefined}
           aria-invalid={!!state.errors?.[name]} aria-describedby={state.errors?.[name] ? `${name}-error` : undefined} />
         {state.errors?.[name] && <p id={`${name}-error`} className="mt-1 text-sm text-rose-700">{state.errors[name]}</p>}
       </div>
@@ -31,24 +37,42 @@ export function BillingForm({ customerId, today }: { customerId: string; today: 
       </div>
     );
   }
-  const advancedError = ["billing_cycle_day", "rounding_increment_minutes", "bill_in_advance", "rollover_enabled"]
+  const advancedError = ["rounding_increment_minutes", "bill_in_advance", "rollover_enabled"]
     .some((field) => state.errors?.[field as BillingField]);
   return (
-    <form action={action} noValidate className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
-      <p className="mb-6 text-sm text-slate-600">Set monthly terms for this customer. Fields marked * are required. Amounts are in USD.</p>
+    <form action={action} noValidate aria-busy={pending} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+      <p className="mb-6 text-sm leading-6 text-slate-600">{agreement
+        ? "The existing agreement will end when these new terms begin. Previous billing terms will remain in history."
+        : "Set monthly terms for this customer."} Fields marked * are required. Amounts are in USD.</p>
       <fieldset disabled={pending} className="space-y-6 disabled:opacity-60">
         <div className="grid gap-5 sm:grid-cols-2">
-          {field("monthly_fee", "Monthly fee ($)", "text", "", true)}
-          {field("included_hours", "Included support hours / month", "text", "", true)}
-          {field("overage_hourly_rate", "Overage rate ($ / hour)", "text", "", true)}
-          {field("effective_date", "Effective date", "date", today, true)}
+          {field("monthly_fee", "Monthly fee ($)", "text", agreement ? String(agreement.monthly_fee) : "", true)}
+          {field("included_hours", "Included support hours / month", "text", agreement ? String(agreement.included_hours) : "", true)}
+          {field("overage_hourly_rate", "Overage rate ($ / hour)", "text", agreement ? String(agreement.overage_hourly_rate) : "", true)}
+          {field("effective_date", agreement ? "New terms effective" : "Effective date", "date", minimumEffective, true)}
+          <div>
+            <label htmlFor="billing_cycle_day" className="mb-2 block text-sm font-medium">Monthly billing day *</label>
+            <select id="billing_cycle_day" name="billing_cycle_day" required className={inputClass}
+              defaultValue={state.values?.billing_cycle_day ?? String(agreement?.billing_cycle_day ?? 1)}
+              aria-invalid={!!state.errors?.billing_cycle_day}
+              aria-describedby={`billing-day-help${state.errors?.billing_cycle_day ? " billing_cycle_day-error" : ""}`}>
+              {Array.from({ length: 28 }, (_, index) => index + 1).map((day) => (
+                <option key={day} value={day}>{formatBillingDay(day)}</option>
+              ))}
+            </select>
+            <p id="billing-day-help" className="mt-2 text-sm leading-6 text-slate-500">Your monthly billing period starts on this day. Included hours reset at the start of each billing period.</p>
+            {state.errors?.billing_cycle_day && <p id="billing_cycle_day-error" className="mt-1 text-sm text-rose-700">{state.errors.billing_cycle_day}</p>}
+          </div>
         </div>
         <fieldset className="space-y-3">
           <legend className="mb-3 text-sm font-medium">Retainer duration</legend>
-          {[
+          {(agreement?.end_date ? [
+            ["preserve_end", `Keep scheduled end date (${formatBusinessDate(agreement.end_date)})`],
+            ["specific_date", "End on an earlier date"],
+          ] : [
             ["until_cancellation", "Until cancellation"],
             ["specific_date", "End on a specific date"],
-          ].map(([value, label]) => (
+          ]).map(([value, label]) => (
             <label key={value} className="flex items-center gap-3 text-sm">
               <input type="radio" name="end_mode" value={value} checked={endMode === value}
                 onChange={() => setEndMode(value)} className="size-4 accent-cyan-700"
@@ -58,26 +82,29 @@ export function BillingForm({ customerId, today }: { customerId: string; today: 
           ))}
           {state.errors?.end_mode && <p id="end_mode-error" className="text-sm text-rose-700">{state.errors.end_mode}</p>}
           {endMode === "specific_date" ? (
-            <div className="max-w-sm pt-2">{field("end_date", "End date (exclusive)", "date", "", true)}</div>
+            <div className="max-w-sm pt-2">{field("end_date", "End date (exclusive)", "date", agreement?.end_date ?? "", true)}</div>
+          ) : endMode === "preserve_end" ? (
+            <p className="text-sm leading-6 text-slate-500">New terms will end on the scheduled date. Changing terms does not extend the retainer.</p>
           ) : (
             <p className="text-sm leading-6 text-slate-500">The retainer continues until cancellation. Use End retainer later to set its cancellation date.</p>
           )}
         </fieldset>
         <p className="text-sm leading-6 text-slate-500">Dates use New York business days. An end date is the first day these terms no longer apply.</p>
-        <details open={advancedError || undefined} className="rounded-xl border border-slate-200 p-4">
+        <details open={!!agreement || advancedError || undefined} className="rounded-xl border border-slate-200 p-4">
           <summary className="cursor-pointer text-sm font-semibold">Advanced billing settings</summary>
-          <p className="my-4 text-sm leading-6 text-slate-600">Standard setup: monthly on day 1, billed at the beginning of the period, each entry rounded up to 15 minutes, and no rollover. Included hours reset every month.</p>
+          <p className="my-4 text-sm leading-6 text-slate-600">{agreement
+            ? "These settings start with the existing agreement’s terms. Adjust only what needs to change."
+            : "Standard setup: billed at the beginning of the period, each entry rounded up to 15 minutes, and no rollover."}</p>
           <div className="grid gap-5 sm:grid-cols-2">
-            {field("billing_cycle_day", "Billing cycle day (1–28)", "number", "1", true)}
-            {field("rounding_increment_minutes", "Round each entry up to (minutes)", "number", "15", true)}
-            {choice("bill_in_advance", "Billing timing", "true", [["true", "Beginning of period"], ["false", "End of period"]])}
-            {choice("rollover_enabled", "Unused included hours", "false", [["false", "Do not roll over"], ["true", "Roll over"]])}
+            {field("rounding_increment_minutes", "Round each entry up to (minutes)", "number", String(agreement?.rounding_increment_minutes ?? 15), true)}
+            {choice("bill_in_advance", "Billing timing", String(agreement?.bill_in_advance ?? true), [["true", "Beginning of period"], ["false", "End of period"]])}
+            {choice("rollover_enabled", "Unused included hours", String(agreement?.rollover_enabled ?? false), [["false", "Do not roll over"], ["true", "Roll over"]])}
           </div>
         </details>
       </fieldset>
       {state.message && <p role="alert" className="mt-5 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{state.message}</p>}
       <div className="mt-6 flex items-center gap-4 border-t border-slate-100 pt-6">
-        <button disabled={pending} className="rounded-lg bg-cyan-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-60">{pending ? "Saving…" : "Set up retainer"}</button>
+        <button disabled={pending} className="rounded-lg bg-cyan-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-60">{pending ? "Saving…" : agreement ? "Change billing terms" : "Set up retainer"}</button>
         <Link href={`/customers/${customerId}`} className="text-sm font-medium text-slate-600">Cancel</Link>
       </div>
     </form>

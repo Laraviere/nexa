@@ -6,6 +6,7 @@ import { customerClient } from "@/lib/customers/server";
 import { isCustomerId } from "@/lib/customers/validation";
 import { agreementStatus, businessDate } from "@/lib/billing/model";
 import { billingError, formText, isBusinessDate, validateBilling, type BillingFormState } from "@/lib/billing/validation";
+import { changeBillingError, validateBillingChange, type ChangeBillingTermsRpc } from "@/lib/billing/change";
 
 export async function createRetainer(customerId: string, _previous: BillingFormState, form: FormData): Promise<BillingFormState> {
   const supabase = await customerClient();
@@ -52,6 +53,30 @@ export async function endRetainer(customerId: string, agreementId: string, _prev
     if (!data) return { values, message: "This agreement changed while you were working. Reload and try again." };
   } catch {
     return { values, message: billingError() };
+  }
+  revalidatePath(`/customers/${customerId}`, "layout");
+  redirect(`/customers/${customerId}`);
+}
+
+export async function changeBillingTerms(customerId: string, agreementId: string, _previous: BillingFormState, form: FormData): Promise<BillingFormState> {
+  const supabase = await customerClient();
+  if (!isCustomerId(customerId) || !isCustomerId(agreementId)) return { message: changeBillingError("P0002") };
+  // Preserve submitted fields on transport/RPC errors, as in the setup form.
+  const values = validateBilling(form, { allowSameDayEnd: true }).values;
+  try {
+    const { data: agreement, error: readError } = await supabase.from("customer_billing_agreements").select("*")
+      .eq("customer_id", customerId).eq("id", agreementId).maybeSingle();
+    if (readError) return { values, message: changeBillingError(readError.code) };
+    if (!agreement) return { values, message: changeBillingError("P0002") };
+    const result = validateBillingChange(form, agreement, businessDate());
+    if (!result.valid) return { values: result.values, errors: result.errors, message: "Please check the highlighted fields." };
+    // One RPC is the only mutation: all locking, eligibility and history changes
+    // are authoritative inside the existing database transaction.
+    const { data, error } = await supabase.rpc("change_customer_billing_terms", result.args);
+    const changed: ChangeBillingTermsRpc["Returns"] | null = data;
+    if (error || !changed) return { values: result.values, message: changeBillingError(error?.code) };
+  } catch {
+    return { values, message: changeBillingError() };
   }
   revalidatePath(`/customers/${customerId}`, "layout");
   redirect(`/customers/${customerId}`);

@@ -160,7 +160,42 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      change_customer_billing_terms: {
+        Args: {
+          p_bill_in_advance: boolean
+          p_billing_cycle_day: number
+          p_effective_date: string
+          p_end_date?: string
+          p_included_hours: number
+          p_monthly_fee: number
+          p_overage_hourly_rate: number
+          p_predecessor_id: string
+          p_rollover_enabled: boolean
+          p_rounding_increment_minutes: number
+        }
+        Returns: {
+          bill_in_advance: boolean
+          billing_cycle_day: number
+          created_at: string
+          customer_id: string
+          effective_date: string
+          end_date: string | null
+          id: string
+          included_hours: number
+          is_active: boolean
+          monthly_fee: number
+          overage_hourly_rate: number
+          rollover_enabled: boolean
+          rounding_increment_minutes: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "customer_billing_agreements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never

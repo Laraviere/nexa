@@ -22,7 +22,7 @@ export function isBusinessDate(value: string) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
-export function validateBilling(form: FormData) {
+export function validateBilling(form: FormData, { allowSameDayEnd = false } = {}) {
   const values = Object.fromEntries(billingFields.map((field) => [field, formText(form, field)])) as Record<BillingField, string>;
   const errors: NonNullable<BillingFormState["errors"]> = {};
   for (const field of ["monthly_fee", "included_hours", "overage_hourly_rate"] as const) {
@@ -43,8 +43,9 @@ export function validateBilling(form: FormData) {
     // Ignore any stale date submitted after switching back to cancellation.
     values.end_date = "";
   } else if (values.end_mode === "specific_date") {
-    if (!isBusinessDate(values.end_date) || values.end_date <= values.effective_date) {
-      errors.end_date = "Enter a valid end date after the effective date.";
+    if (!isBusinessDate(values.end_date) || values.end_date < values.effective_date
+      || (!allowSameDayEnd && values.end_date === values.effective_date)) {
+      errors.end_date = allowSameDayEnd ? "Enter a valid end date on or after the effective date." : "Enter a valid end date after the effective date.";
     }
   } else {
     errors.end_mode = "Choose until cancellation or an end date.";
@@ -52,13 +53,13 @@ export function validateBilling(form: FormData) {
   for (const field of ["bill_in_advance", "rollover_enabled"] as const) {
     if (!["true", "false"].includes(values[field])) errors[field] = "Choose a billing option.";
   }
-  const data: Omit<TablesInsert<"customer_billing_agreements">, "customer_id"> = {
+  const data = {
     monthly_fee: Number(values.monthly_fee), included_hours: Number(values.included_hours),
     overage_hourly_rate: Number(values.overage_hourly_rate), effective_date: values.effective_date,
     end_date: values.end_date || null, billing_cycle_day: Number(values.billing_cycle_day),
     bill_in_advance: values.bill_in_advance === "true", rounding_increment_minutes: Number(values.rounding_increment_minutes),
     rollover_enabled: values.rollover_enabled === "true", is_active: true,
-  };
+  } satisfies Omit<TablesInsert<"customer_billing_agreements">, "customer_id">;
   return { values, errors, data, valid: Object.keys(errors).length === 0 };
 }
 

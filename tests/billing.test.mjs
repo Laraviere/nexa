@@ -20,13 +20,18 @@ function form(overrides = {}) {
   return data;
 }
 // Tests execute real modules; only the database/framework boundary is simulated.
-function harness() {
-  let authenticated = true, failure, conflict = false;
+function harness({ pending = false } = {}) {
+  let authenticated = true, failure, rpcFailure, conflict = false;
   const rows = [];
   const calls = [];
   const revalidated = [];
   const client = {
     auth: { getClaims: async () => ({ data: authenticated ? { claims: { sub: "test" } } : null }) },
+    async rpc(name, args) {
+      calls.push({ operation: "rpc", name, args });
+      return { data: rpcFailure ? null : fixture({ id: "returned-agreement" }),
+        error: rpcFailure ? { code: rpcFailure, message: "Private PostgreSQL details" } : null };
+    },
     from(table) {
       assert.equal(table, "customer_billing_agreements");
       let operation = "select", payload, range;
@@ -58,6 +63,7 @@ function harness() {
     },
   };
   const overrides = {
+    ...(pending ? { react: { ...require("react"), useActionState: () => [{}, () => {}, true] } } : {}),
     "server-only": {},
     "@/lib/supabase/server": { createClient: async () => client },
     "next/navigation": { redirect: (url) => { throw Object.assign(new Error("redirect"), { url }); }, notFound: () => { throw new Error("notFound"); } },
@@ -77,7 +83,7 @@ function harness() {
     vm.runInThisContext(`(function(require,module,exports){${output}\n})`, { filename })(load, loaded, loaded.exports);
     return loaded.exports;
   }
-  return { load, rows, calls, revalidated, denyAuth: () => { authenticated = false; }, fail: (code) => { failure = code; }, conflict: () => { conflict = true; } };
+  return { load, rows, calls, revalidated, denyAuth: () => { authenticated = false; }, fail: (code) => { failure = code; }, failRpc: (code) => { rpcFailure = code; }, conflict: () => { conflict = true; } };
 }
 
 test("New York business dates and exclusive boundaries select only current enabled terms", () => {
@@ -183,7 +189,7 @@ test("billing reads and actions all require authentication", async () => {
   const h = harness(); h.denyAuth();
   const actions = h.load("@/actions/billing");
   const reads = h.load("@/lib/billing/server");
-  for (const operation of [() => actions.createRetainer(customerId, {}, form()), () => actions.endRetainer(customerId, agreementId, {}, form()), () => reads.getBillingAgreements(customerId), () => reads.getBillingAgreement(customerId, agreementId)]) {
+  for (const operation of [() => actions.createRetainer(customerId, {}, form()), () => actions.endRetainer(customerId, agreementId, {}, form()), () => actions.changeBillingTerms(customerId, agreementId, {}, form()), () => reads.getBillingAgreements(customerId), () => reads.getBillingAgreement(customerId, agreementId)]) {
     await assert.rejects(operation(), (error) => error.url === "/login");
   }
   assert.equal(h.calls.length, 0);
@@ -290,4 +296,177 @@ test("end form defaults to End now with immediate confirmation and no date input
   assert.match(markup, /retainer will end immediately/);
   assert.match(markup, /checked=""[^>]*value="now"/);
   assert.doesNotMatch(markup, /name="end_date"/);
+});
+
+test("change action is offered only on eligible current/future agreements, with empty history retained", () => {
+  const h = harness();
+  const { CustomerBilling } = h.load("@/components/billing/customer-billing");
+  const { canChangeBillingTerms, agreementStatus } = h.load("@/lib/billing/model");
+  const render = (agreements) => require("react-dom/server").renderToStaticMarkup(require("react").createElement(CustomerBilling, { customerId, agreements, today: "2027-01-01" }));
+  const current = fixture();
+  assert.ok(canChangeBillingTerms(current, [current], "2027-01-01"));
+  assert.match(render([current]), new RegExp(`/billing/${agreementId}/change`));
+  const future = fixture({ id: "future", effective_date: "2027-04-01" });
+  const ended = { ...current, end_date: "2027-04-01" };
+  const html = render([ended, future]);
+  assert.match(html, /billing\/future\/change/);
+  assert.doesNotMatch(html, new RegExp(`/billing/${agreementId}/change`));
+  for (const agreement of [fixture({ is_active: false }), fixture({ end_date: "2027-01-01" }),
+    fixture({ effective_date: "2027-04-01", end_date: "2027-04-01" })]) {
+    assert.equal(canChangeBillingTerms(agreement, [agreement], "2027-01-01"), false);
+    assert.doesNotMatch(render([agreement]), /\/change"/);
+  }
+  assert.equal(agreementStatus({ ...future, end_date: future.effective_date }, "2027-01-01"), "Ended");
+  assert.equal(canChangeBillingTerms(ended, [ended, { ...future, is_active: false }], "2027-01-01"), false);
+  assert.doesNotMatch(html, /Edit agreement|Delete agreement|predecessor|successor/i);
+});
+
+test("change form prefills every financial/advanced term and explains historical preservation", () => {
+  const { BillingForm } = harness().load("@/components/billing/billing-form");
+  const agreement = fixture({ effective_date: "2027-05-01", monthly_fee: 650.25, included_hours: 2.75,
+    overage_hourly_rate: 150.5, billing_cycle_day: 12, bill_in_advance: false,
+    rounding_increment_minutes: 30, rollover_enabled: true });
+  const render = (row) => require("react-dom/server").renderToStaticMarkup(require("react").createElement(BillingForm, { customerId, today: "2027-01-01", agreement: row }));
+  const html = render(agreement);
+  for (const [field, value] of Object.entries({ monthly_fee: "650.25", included_hours: "2.75", overage_hourly_rate: "150.5",
+    rounding_increment_minutes: "30", effective_date: "2027-05-01" })) {
+    assert.match(html, new RegExp(`name="${field}"[^>]*value="${value}"`));
+  }
+  assert.match(html, /name="billing_cycle_day"[\s\S]*?value="12" selected="">12th/);
+  assert.match(html, /name="bill_in_advance"[\s\S]*?value="false" selected=""/);
+  assert.match(html, /name="rollover_enabled"[\s\S]*?value="true" selected=""/);
+  assert.match(html, /New terms effective/);
+  assert.match(html, /Previous billing terms will remain in history/);
+  assert.match(html, /checked=""[^>]*value="until_cancellation"/);
+  assert.match(html, /<input(?=[^>]*name="effective_date")(?=[^>]*required="")[^>]*>/);
+  assert.doesNotMatch(html, /predecessor|successor|name="end_date"/i);
+  const scheduled = render({ ...agreement, end_date: "2027-08-01" });
+  assert.match(scheduled, /checked=""[^>]*value="preserve_end"/);
+  assert.match(scheduled, /Keep scheduled end date \(August 1, 2027\)/);
+  assert.match(scheduled, /End on an earlier date/);
+  assert.doesNotMatch(scheduled, /value="until_cancellation"/);
+});
+
+test("change validation reuses safe amounts and accepts only valid effective/end dates", () => {
+  const { validateBillingChange } = harness().load("@/lib/billing/change");
+  const row = fixture();
+  const validate = (fields, agreement = row) => validateBillingChange(form(fields), agreement, "2027-01-01");
+  for (const effective_date of ["", "2026-12-31", "2027-02-30", "infinity"]) assert.ok(validate({ effective_date }).errors.effective_date);
+  assert.ok(validate({}, { ...row, effective_date: "2027-02-01" }).errors.effective_date);
+  for (const field of ["monthly_fee", "included_hours", "overage_hourly_rate"]) {
+    for (const value of ["-1", "1.001", "NaN", "1e3", "999999999999"]) assert.ok(validate({ [field]: value }).errors[field]);
+  }
+  for (const fields of [{ billing_cycle_day: "29" }, { rounding_increment_minutes: "0" }, { bill_in_advance: "unknown" }]) assert.equal(validate(fields).valid, false);
+  assert.equal(validate({}).args.p_end_date, undefined);
+  assert.equal(validate({ end_mode: "specific_date", end_date: "2027-01-01" }).valid, true);
+  const scheduled = { ...row, end_date: "2027-04-01" };
+  const kept = validate({ end_mode: "preserve_end", end_date: "2099-01-01" }, scheduled);
+  assert.equal(kept.valid, true);
+  assert.equal("p_end_date" in kept.args, false);
+  assert.equal(kept.values.end_mode, "preserve_end");
+  assert.ok(validate({}, scheduled).errors.end_mode);
+  assert.ok(validate({ end_mode: "preserve_end" }).errors.end_mode);
+  assert.ok(validate({ end_mode: "specific_date", end_date: "2027-04-02" }, scheduled).errors.end_date);
+  assert.ok(validate({ end_mode: "preserve_end", effective_date: "2027-04-01" }, scheduled).errors.effective_date);
+  assert.equal(validate({ end_mode: "specific_date", end_date: "2027-03-01" }, scheduled).args.p_end_date, "2027-03-01");
+});
+
+test("change server action scopes the read, whitelists generated RPC args and performs exactly one RPC mutation", async () => {
+  const h = harness(); h.rows.push(fixture());
+  const { changeBillingTerms } = h.load("@/actions/billing");
+  const today = h.load("@/lib/billing/model").businessDate();
+  await assert.rejects(changeBillingTerms(customerId, agreementId, {}, form({ effective_date: today,
+    monthly_fee: "650.25", billing_cycle_day: "15", customer_id: "injected", p_predecessor_id: "injected", is_active: "false" })),
+  (error) => error.url === `/customers/${customerId}`);
+  assert.deepEqual(h.calls.map((call) => call.operation), ["select", "rpc"]);
+  assert.deepEqual(h.calls[0].filters, [["customer_id", customerId], ["id", agreementId]]);
+  assert.equal(h.calls[1].name, "change_customer_billing_terms");
+  assert.deepEqual(h.calls[1].args, { p_predecessor_id: agreementId, p_effective_date: today,
+    p_monthly_fee: 650.25, p_included_hours: 1.5, p_overage_hourly_rate: 125,
+    p_billing_cycle_day: 15, p_bill_in_advance: true, p_rounding_increment_minutes: 15, p_rollover_enabled: false });
+  assert.deepEqual(h.revalidated, [[`/customers/${customerId}`, "layout"]]);
+});
+
+test("change rejects invalid/cross-customer submissions and sanitizes expected RPC failures", async () => {
+  const h = harness(); h.rows.push(fixture());
+  const { changeBillingTerms } = h.load("@/actions/billing");
+  const today = h.load("@/lib/billing/model").businessDate();
+  assert.ok((await changeBillingTerms(customerId, agreementId, {}, form({ effective_date: "" }))).errors.effective_date);
+  assert.match((await changeBillingTerms("32345678-1234-4234-8234-123456789012", agreementId, {}, form({ effective_date: today }))).message, /can no longer be changed/);
+  assert.equal(h.calls.some((call) => call.operation === "rpc"), false);
+  for (const [code, text] of [["55000", /can no longer be changed/], ["P0002", /can no longer be changed/],
+    ["22023", /invalid/], ["23P01", /conflict/], ["40001", /changed while/], ["42501", /Sign in/], ["unknown", /Please try again/]]) {
+    h.failRpc(code);
+    const result = await changeBillingTerms(customerId, agreementId, {}, form({ effective_date: today, monthly_fee: "678.90" }));
+    assert.match(result.message, text);
+    assert.doesNotMatch(result.message, /Private|PostgreSQL|55000|23P01/);
+    assert.equal(result.values.monthly_fee, "678.90");
+  }
+  assert.equal(h.revalidated.length, 0);
+});
+
+test("pending change form disables submission and fields with a visible saving state", () => {
+  const { BillingForm } = harness({ pending: true }).load("@/components/billing/billing-form");
+  const html = require("react-dom/server").renderToStaticMarkup(require("react").createElement(BillingForm,
+    { customerId, today: "2027-01-01", agreement: fixture() }));
+  assert.match(html, /<form[^>]*aria-busy="true"/);
+  assert.match(html, /<fieldset disabled=""/);
+  assert.match(html, /<button disabled=""[^>]*>Saving…/);
+});
+
+test("monthly billing day is visible outside advanced settings with ordinal options 1–28 and setup default 1", () => {
+  const h = harness();
+  const { BillingForm } = h.load("@/components/billing/billing-form");
+  const { formatBillingDay, formatBillingCycle } = h.load("@/lib/billing/model");
+  const ordinals = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st", "22nd", "23rd", "24th", "25th", "26th", "27th", "28th"];
+  for (const [index, label] of ordinals.entries()) {
+    assert.equal(formatBillingDay(index + 1), label);
+    assert.equal(formatBillingCycle(index + 1), `Monthly on the ${label}`);
+  }
+  for (const agreement of [undefined, fixture({ billing_cycle_day: 15 })]) {
+    const html = require("react-dom/server").renderToStaticMarkup(require("react").createElement(BillingForm,
+      { customerId, today: "2027-01-01", agreement }));
+    const visible = html.replace(/<details\b[\s\S]*?<\/details>/g, "");
+    assert.match(visible, /Monthly billing day/);
+    const select = visible.match(/<select\b[^>]*name="billing_cycle_day"[\s\S]*?<\/select>/)?.[0];
+    assert.ok(select, "Billing day must be visible without opening advanced settings");
+    const options = [...select.matchAll(/<option value="(\d+)"(?: selected="")?>([^<]+)<\/option>/g)];
+    assert.deepEqual(options.map((match) => Number(match[1])), Array.from({ length: 28 }, (_, index) => index + 1));
+    assert.deepEqual(options.map((match) => match[2]), ordinals);
+    assert.match(select, new RegExp(`value="${agreement ? 15 : 1}" selected=""`));
+    assert.match(visible, /Included hours reset at the start of each billing period/);
+    assert.equal((html.match(/name="billing_cycle_day"/g) ?? []).length, 1);
+  }
+});
+
+test("setup and change server actions reject invalid monthly billing days before any mutation", async () => {
+  const h = harness(); h.rows.push(fixture());
+  const actions = h.load("@/actions/billing");
+  const today = h.load("@/lib/billing/model").businessDate();
+  for (const billing_cycle_day of ["", "-1", "0", "29", "100", "1.5", "1e1"]) {
+    const values = { billing_cycle_day, effective_date: today };
+    assert.ok((await actions.createRetainer(customerId, {}, form(values))).errors.billing_cycle_day);
+    assert.ok((await actions.changeBillingTerms(customerId, agreementId, {}, form(values))).errors.billing_cycle_day);
+  }
+  assert.ok(h.calls.every((call) => call.operation === "select"));
+  for (const billing_cycle_day of ["1", "28"]) {
+    const fresh = harness();
+    await assert.rejects(fresh.load("@/actions/billing").createRetainer(customerId, {}, form({ billing_cycle_day })),
+      (error) => error.url === `/customers/${customerId}`);
+    assert.equal(fresh.calls.find((call) => call.operation === "insert").payload.billing_cycle_day, Number(billing_cycle_day));
+    const change = fresh.load("@/lib/billing/change").validateBillingChange(form({ billing_cycle_day }), fixture(), "2027-01-01");
+    assert.equal(change.valid, true);
+    assert.equal(change.args.p_billing_cycle_day, Number(billing_cycle_day));
+  }
+});
+
+test("customer detail shows current and historical billing days with friendly ordinal labels", () => {
+  const { CustomerBilling } = harness().load("@/components/billing/customer-billing");
+  const agreements = [fixture({ billing_cycle_day: 1, end_date: "2027-01-01" }),
+    fixture({ id: "new", billing_cycle_day: 15, effective_date: "2027-01-01" })];
+  const html = require("react-dom/server").renderToStaticMarkup(require("react").createElement(CustomerBilling,
+    { customerId, agreements, today: "2027-01-01" }));
+  assert.match(html, /Monthly on the 1st/);
+  assert.match(html, /Monthly on the 15th/);
+  assert.match(html, /Included hours reset at the start of each billing period on the monthly billing day/);
 });
