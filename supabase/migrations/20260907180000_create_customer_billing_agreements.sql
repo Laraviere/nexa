@@ -1,5 +1,8 @@
 -- Monthly agreement terms, versioned by inserting a new row when terms change.
 -- Dates are business dates in America/New_York: [effective_date, end_date).
+-- GiST equality support for customer UUIDs, alongside the built-in range index.
+create extension if not exists btree_gist with schema extensions;
+
 create table public.customer_billing_agreements (
   id uuid primary key default gen_random_uuid(),
   customer_id uuid not null,
@@ -33,10 +36,18 @@ create table public.customer_billing_agreements (
     check (
       isfinite(effective_date)
       and (end_date is null or (isfinite(end_date) and end_date > effective_date))
+    ),
+  -- Applies to every row, including inactive/historical agreements. A NULL
+  -- upper bound is unbounded; adjacent [) periods do not overlap.
+  constraint customer_billing_agreements_no_overlapping_periods
+    exclude using gist (
+      customer_id with =,
+      daterange(effective_date, end_date, '[)') with &&
     )
 );
 
--- Also serves customer_id foreign-key lookups; no separate redundant index.
+-- Retain ordered customer history lookups: the exclusion GiST index does not
+-- replace this B-tree's effective_date ordering. Also serves FK lookups.
 create index customer_billing_agreements_customer_effective_idx
   on public.customer_billing_agreements (customer_id, effective_date desc);
 
@@ -69,7 +80,7 @@ revoke all on public.customer_billing_agreements from public, anon, authenticate
 grant select, insert, update on public.customer_billing_agreements to authenticated;
 
 comment on table public.customer_billing_agreements is
-  'Monthly terms per customer. Preserve used terms by ending the old row and inserting a successor; date overlaps are not prevented by this schema. Future time entries should retain agreement_id and rounded usage, and invoices must snapshot billed terms.';
+  'Monthly terms per customer. Preserve used terms by ending the old row and inserting a successor; overlapping effective periods for the same customer are prohibited, including inactive agreements. Adjacent periods are allowed. Future time entries should retain agreement_id and rounded usage, and invoices must snapshot billed terms.';
 comment on column public.customer_billing_agreements.effective_date is
   'Inclusive first business date (America/New_York). Required explicitly; no timezone-dependent current_date default.';
 comment on column public.customer_billing_agreements.end_date is

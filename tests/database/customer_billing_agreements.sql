@@ -131,6 +131,95 @@ select pg_temp.assert_true(
   (select count(*) = 2 from public.customer_billing_agreements where customer_id = 'a9719710-1000-4000-8000-000000000001'),
   'Foreign key rejects missing customer and customer deletion preserves history');
 
+-- Exercise overlap enforcement as authenticated, including updates and inactive rows.
+set local role authenticated;
+do $ranges$
+declare
+  first_customer uuid;
+  second_customer uuid;
+  predecessor uuid;
+  successor uuid;
+  failure_constraint text;
+begin
+  insert into public.customers (company_name) values ('Local range test A') returning id into first_customer;
+  insert into public.customers (company_name) values ('Local range test B') returning id into second_customer;
+
+  insert into public.customer_billing_agreements
+    (customer_id, monthly_fee, included_hours, overage_hourly_rate, effective_date, end_date, is_active)
+  values (first_customer, 100, 1, 50, '2026-01-01', '2026-04-01', false)
+  returning id into predecessor;
+
+  -- Separated periods with a gap are valid.
+  insert into public.customer_billing_agreements
+    (customer_id, monthly_fee, included_hours, overage_hourly_rate, effective_date, end_date)
+  values (first_customer, 100, 1, 50, '2025-10-01', '2025-12-01');
+  raise notice 'PASS: separated periods for one customer';
+
+  -- A conflicting INSERT must fail even though the existing row is inactive.
+  begin
+    insert into public.customer_billing_agreements
+      (customer_id, monthly_fee, included_hours, overage_hourly_rate, effective_date, end_date, is_active)
+    values (first_customer, 100, 1, 50, '2026-03-01', '2026-05-01', false);
+    raise exception 'Overlapping inactive agreements were accepted';
+  exception when exclusion_violation then
+    get stacked diagnostics failure_constraint = constraint_name;
+    if failure_constraint <> 'customer_billing_agreements_no_overlapping_periods' then raise; end if;
+  end;
+  raise notice 'PASS: same-customer overlap rejected, including inactive agreements';
+
+  insert into public.customer_billing_agreements
+    (customer_id, monthly_fee, included_hours, overage_hourly_rate, effective_date)
+  values (first_customer, 100, 1, 50, '2026-04-01') returning id into successor;
+  raise notice 'PASS: adjacent [) periods with open-ended successor';
+
+  perform pg_temp.assert_true(
+    (select upper_inf(daterange(effective_date, end_date, '[)'))
+     from public.customer_billing_agreements where id = successor),
+    'NULL end_date is an unbounded upper range');
+
+  begin
+    insert into public.customer_billing_agreements
+      (customer_id, monthly_fee, included_hours, overage_hourly_rate, effective_date)
+    values (first_customer, 100, 1, 50, '2027-01-01');
+    raise exception 'Later agreement overlapping an open-ended range was accepted';
+  exception when exclusion_violation then null;
+  end;
+  raise notice 'PASS: open-ended agreement rejects a later agreement';
+
+  begin
+    update public.customer_billing_agreements set effective_date = '2026-03-31' where id = successor;
+    raise exception 'Overlapping date UPDATE was accepted';
+  exception when exclusion_violation then null;
+  end;
+  begin
+    update public.customer_billing_agreements set end_date = null where id = predecessor;
+    raise exception 'Removing predecessor end date created an overlap';
+  exception when exclusion_violation then null;
+  end;
+  raise notice 'PASS: date updates cannot introduce overlaps';
+
+  insert into public.customer_billing_agreements
+    (customer_id, monthly_fee, included_hours, overage_hourly_rate, effective_date)
+  values (second_customer, 100, 1, 50, '2026-03-01');
+  raise notice 'PASS: overlapping dates for different customers';
+
+  begin
+    update public.customer_billing_agreements set customer_id = second_customer where id = successor;
+    raise exception 'Changing customer created an overlap';
+  exception when exclusion_violation then null;
+  end;
+  raise notice 'PASS: customer updates cannot introduce overlaps';
+end;
+$ranges$;
+reset role;
+
+select pg_temp.assert_true(
+  has_table_privilege('authenticated', 'public.customer_billing_agreements', 'SELECT')
+  and has_table_privilege('authenticated', 'public.customer_billing_agreements', 'INSERT')
+  and has_table_privilege('authenticated', 'public.customer_billing_agreements', 'UPDATE')
+  and not has_table_privilege('authenticated', 'public.customer_billing_agreements', 'DELETE'),
+  'Authenticated table privileges remain SELECT/INSERT/UPDATE without DELETE');
+
 set local role anon;
 select pg_temp.expect_error($$select * from public.customer_billing_agreements$$, '42501');
 select pg_temp.expect_error(
