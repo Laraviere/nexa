@@ -37,5 +37,6 @@ export async function saveTimeEntry(_previous: TimeFormState, form: FormData): P
     return { message: "Unable to confirm the save. Check recent entries before trying again to avoid recording the work twice." };
   }
   revalidatePath("/time");
+  revalidatePath(`/customers/${values.customer_id}`);
   redirect("/time");
 }

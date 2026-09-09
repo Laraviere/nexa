@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { RetainerUsage } from "@/components/billing/retainer-usage";
+import type { RetainerUsageResult } from "@/lib/billing/usage";
 import { agreementStatus, canChangeBillingTerms, currentAgreement, formatBillingCycle, formatBusinessDate, formatIncludedHours, formatMoney, type BillingAgreement } from "@/lib/billing/model";
 
-export function CustomerBilling({ customerId, agreements, today }: { customerId: string; agreements: BillingAgreement[]; today: string }) {
+export function CustomerBilling({ customerId, agreements, today, usage }: { customerId: string; agreements: BillingAgreement[]; today: string; usage?: RetainerUsageResult }) {
   const current = currentAgreement(agreements, today);
   const terms = current ? [
     ["Monthly fee", formatMoney(current.monthly_fee)],
@@ -36,7 +38,8 @@ export function CustomerBilling({ customerId, agreements, today }: { customerId:
         <dl className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {terms.map(([label, value]) => <div key={label}><dt className="text-sm text-slate-500">{label}</dt><dd className="mt-1 text-sm leading-6">{value}</dd></div>)}
         </dl>
-        <p className="mt-5 text-sm text-slate-500">Included hours reset at the start of each billing period on the monthly billing day. Rounding applies to each individual entry before usage is totaled.</p>
+        <p className="mt-5 text-sm text-slate-500">Included hours reset at the start of each billing period on the monthly billing day. Each agreement version also starts a fresh allowance on its effective date. Rounding applies to each individual entry before usage is totaled.</p>
+        {usage && <RetainerUsage result={usage} />}
       </>}
       <div className="mt-8 border-t border-slate-100 pt-6">
         <h3 className="font-semibold">Agreement history</h3>

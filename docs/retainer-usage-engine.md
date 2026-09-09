@@ -29,8 +29,9 @@ One row is returned, even for an empty period:
 | `allocations` | jsonb ordered array, `[]` when empty |
 
 Each allocation contains `time_entry_id`, `work_date`, `created_at`,
-`rounded_minutes`, `included_minutes`, `overage_minutes`, `hourly_rate`, and
-`overage_amount`. No allocations or totals are persisted; a corrected, backdated
+`rounded_minutes`, `included_minutes`, `overage_minutes`, and `hourly_rate`.
+Per-entry dollar amounts are deliberately omitted: the period summary is the
+only authoritative charge. No allocations or totals are persisted; a corrected, backdated
 or voided entry affects the next calculation.
 
 ## Periods and snapshots
@@ -55,8 +56,11 @@ If there is no eligible captured calendar, use the governing agreement's day.
 Within the selected period, captured included-hours and rollover snapshots must
 agree. Conflicts raise `22023`. Captured values override later parent edits;
 without eligible entries in the period, the governing agreement supplies those
-terms. Hourly rates may differ per entry and are priced individually from their
-snapshots. Administrative disabling never removes previously captured references
+terms. Captured hourly rates must also agree across all eligible entries in the
+selected period, including entries fully covered by the allowance. Conflicts
+raise `22023` with a clear hourly-rate snapshot error. Voided, non-billable and
+outside-period rates do not participate. A consistent captured rate overrides
+the parent rate; empty periods use the agreement rate and still charge zero. Administrative disabling never removes previously captured references
 from the calculation.
 
 Only billable, non-voided entries matching customer, agreement and `[start,end)`
@@ -83,13 +87,17 @@ by 60 exactly: 1 → 60, 1.5 → 90, 0.25 → 15. Fractional-minute allowances (
 silently truncated. Existing agreement entry validation permits such values, so
 a future usage UI must surface this limitation or align allowance validation.
 
-Per-entry USD amount is `round(overage_minutes * hourly_rate / 60, 2)`.
-PostgreSQL numeric ties round away from zero. Summary overage amount is the sum
-of these cent-rounded entry amounts. This is an explicit per-entry pricing
-policy: it can differ by cents from rounding once after summing unrounded fees.
-For example, two one-minute entries at $0.30/hour and $0.90/hour produce $0.01
-and $0.02, totaling $0.03. Future invoices must preserve this policy or explicitly
-introduce a different one. The monthly retainer fee is not calculated here.
+The authoritative USD amount is
+`round(total_period_overage_minutes * consistent_captured_hourly_rate / 60, 2)`.
+All arithmetic is PostgreSQL numeric. Sum the overage minutes first, multiply by
+the single period rate, divide by 60, then round once to cents. No entry-level
+amounts are calculated or returned. PostgreSQL numeric ties round away from zero.
+
+Two one-minute overages at $0.30/hour total $0.01; rounding each entry would
+incorrectly total $0.02. With 1 and 16 overage minutes at $125/hour, the period
+charge is $35.42, whereas entry-level cent rounding would give $35.41. Minute
+allocation and ordering remain unchanged. This supports the future summarized
+billing-period overage charge; no invoice or monthly retainer fee is built here.
 
 Rollover is unsupported: captured `rollover_enabled=true` raises `0A000`. Empty
 periods with agreement rollover enabled also fail. A later parent setting cannot
@@ -145,3 +153,8 @@ and must run sequentially. The new migration is applied locally using
 References: PostgreSQL [numeric arithmetic](https://www.postgresql.org/docs/17/datatype-numeric.html),
 [window frames](https://www.postgresql.org/docs/17/functions-window.html), and
 [STABLE statement snapshots](https://www.postgresql.org/docs/17/xfunc-volatility.html).
+
+The unapplied-to-hosted migration uses `CREATE OR REPLACE FUNCTION`, allowing its
+corrected definition to be safely reapplied to the local database without dropping
+the function, creating another migration version, or changing migration history.
+The same migration is also validated from scratch by the disposable replay suite.

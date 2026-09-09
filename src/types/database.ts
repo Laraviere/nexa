@@ -352,6 +352,22 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_retainer_period_usage: {
+        Args: { p_billing_agreement_id: string; p_reference_date: string }
+        Returns: {
+          allocations: Json
+          billing_agreement_id: string
+          customer_id: string
+          included_minutes_available: number
+          included_minutes_used: number
+          overage_amount: number
+          overage_minutes: number
+          period_end: string
+          period_start: string
+          remaining_included_minutes: number
+          rounded_minutes_used: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

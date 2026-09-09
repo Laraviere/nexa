@@ -14,7 +14,7 @@ function form(extra = {}) {
 }
 function harness() {
   let authenticated = true, agreement = null, failure, contextFailure = false;
-  const inserts = [], reads = [];
+  const inserts = [], reads = [], invalidated = [];
   const client = { auth: { getClaims: async () => ({ data: authenticated ? { claims: {} } : null }) }, from(table) {
     let inserting = false;
     const query = {
@@ -27,7 +27,7 @@ function harness() {
   } };
   const overrides = { "server-only": {}, "@/lib/supabase/server": { createClient: async () => client },
     "next/navigation": { redirect(url) { throw Object.assign(new Error("redirect"), { url }); } },
-    "next/cache": { revalidatePath() {} },
+    "next/cache": { revalidatePath(value) { invalidated.push(value); } },
     "next/link": { __esModule: true, default: ({ children, ...props }) => require("react").createElement("a", props, children) },
     "@/components/auth/sign-out-button": { SignOutButton: () => null },
   };
@@ -43,7 +43,7 @@ function harness() {
     vm.runInThisContext(`(function(require,module,exports){${output}\n})`, { filename })(load, loaded, loaded.exports);
     return loaded.exports;
   }
-  return { load, inserts, reads, deny: () => { authenticated = false; }, retainer: () => { agreement = { included_hours: 1, rounding_increment_minutes: 15, overage_hourly_rate: 125, billing_cycle_day: 15 }; }, fail: (code) => { failure = code; }, failContext: () => { contextFailure = true; } };
+  return { load, inserts, reads, invalidated, deny: () => { authenticated = false; }, retainer: () => { agreement = { included_hours: 1, rounding_increment_minutes: 15, overage_hourly_rate: 125, billing_cycle_day: 15 }; }, fail: (code) => { failure = code; }, failContext: () => { contextFailure = true; } };
 }
 
 test("manual duration uses integer minutes, valid dates and required fields", () => {
@@ -59,6 +59,7 @@ test("manual duration uses integer minutes, valid dates and required fields", ()
 test("time action whitelists inputs, leaves snapshot authority to database and scopes preview to enabled work-date terms", async () => {
   const h = harness(); h.retainer();
   await assert.rejects(h.load("@/actions/time").saveTimeEntry({}, form({ hourly_rate: "forged", billing_agreement_id: "forged", actual_minutes: "1", rounded_minutes: "1", included_hours_snapshot: "999", rounding_increment_minutes: "1", created_at: "forged" })), { url: "/time" });
+  assert.deepEqual(h.invalidated, ["/time", `/customers/${customer}`]);
   assert.deepEqual(h.inserts[0], { customer_id: customer, work_date: "2026-09-08", description: "Printer work", actual_minutes: 18, is_billable: true, hourly_rate: null });
   assert.ok(h.reads.some((r) => r[1] === "is_active" && r[2] === true));
   assert.ok(h.reads.some((r) => r[1] === "effective_date" && r[2] === "2026-09-08"));

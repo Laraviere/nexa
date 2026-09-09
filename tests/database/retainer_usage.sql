@@ -45,6 +45,11 @@ set local request.jwt.claims='{"sub":"00000000-0000-4000-8000-000000000001","rol
 do $$
 declare a public.customer_billing_agreements; b public.customer_billing_agreements;
   u record; v record; e uuid; f uuid; ignored uuid; original jsonb;
+  -- The terms RPC forbids backdating. Keep this real-RPC fixture future-dated
+  -- while retaining an 8th-of-month change and 15th-of-month billing anchor.
+  change_date date := (date_trunc('month',clock_timestamp() at time zone 'America/New_York') + interval '1 month')::date + 7;
+  old_start date := (date_trunc('month',change_date::timestamp) - interval '1 month')::date + 14;
+  new_anchor date := change_date + 7;
 begin
   a := pg_temp.usage_agreement();
   select * into u from public.get_retainer_period_usage(a.id,'2026-09-01');
@@ -110,25 +115,25 @@ begin
   perform pg_temp.usage_assert(to_jsonb(u)=to_jsonb(v), 'Repeated calls deterministic');
   raise notice 'PASS: historical snapshots, changed source records, soft void and deterministic three-key partial boundary';
 
-  a := pg_temp.usage_agreement();
-  perform pg_temp.usage_entry(a.customer_id,'2026-09-07',60);
-  -- Real atomic version change: old closes Sep 8; new receives its own allowance.
-  b := public.change_customer_billing_terms(a.id,'2026-09-08',600,2,150,15,true,15,false);
-  perform pg_temp.usage_entry(b.customer_id,'2026-09-08',90);
-  select * into u from public.get_retainer_period_usage(a.id,'2026-09-07');
-  select * into v from public.get_retainer_period_usage(b.id,'2026-09-08');
-  perform pg_temp.usage_assert(u.period_start='2026-08-15' and u.period_end='2026-09-08'
+  a := pg_temp.usage_agreement(1,15,old_start);
+  perform pg_temp.usage_entry(a.customer_id,change_date-1,60);
+  -- Real atomic version change: old closes on the 8th; new gets full allowance.
+  b := public.change_customer_billing_terms(a.id,change_date,600,2,150,15,true,15,false);
+  perform pg_temp.usage_entry(b.customer_id,change_date,90);
+  select * into u from public.get_retainer_period_usage(a.id,change_date-1);
+  select * into v from public.get_retainer_period_usage(b.id,change_date);
+  perform pg_temp.usage_assert(u.period_start=old_start and u.period_end=change_date
     and u.included_minutes_available=60 and u.rounded_minutes_used=60
-    and v.period_start='2026-09-08' and v.period_end='2026-09-15'
+    and v.period_start=change_date and v.period_end=new_anchor
     and v.included_minutes_available=120 and v.remaining_included_minutes=30,
     'Mid-period version change truncates old range and starts fresh full allowance without pooling');
-  select * into v from public.get_retainer_period_usage(b.id,'2026-09-15');
-  perform pg_temp.usage_assert(v.period_start='2026-09-15' and v.period_end='2026-10-15'
+  select * into v from public.get_retainer_period_usage(b.id,new_anchor);
+  perform pg_temp.usage_assert(v.period_start=new_anchor and v.period_end=(new_anchor+interval '1 month')::date
     and v.remaining_included_minutes=120, 'Successor resumes monthly billing anchor after initial partial period');
-  perform pg_temp.usage_reject(format('select * from public.get_retainer_period_usage(%L,%L)',a.id,'2026-09-08'),'22023');
-  update public.customer_billing_agreements set end_date='2026-09-12' where id=b.id;
-  select * into v from public.get_retainer_period_usage(b.id,'2026-09-10');
-  perform pg_temp.usage_assert(v.period_end='2026-09-12' and v.included_minutes_available=120, 'Scheduled cancellation truncates end, no allowance proration');
+  perform pg_temp.usage_reject(format('select * from public.get_retainer_period_usage(%L,%L)',a.id,change_date),'22023');
+  update public.customer_billing_agreements set end_date=change_date+4 where id=b.id;
+  select * into v from public.get_retainer_period_usage(b.id,change_date+2);
+  perform pg_temp.usage_assert(v.period_end=change_date+4 and v.included_minutes_available=120, 'Scheduled cancellation truncates end, no allowance proration');
   a := pg_temp.usage_agreement(1,28,'2024-01-01');
   select * into u from public.get_retainer_period_usage(a.id,'2024-02-29');
   perform pg_temp.usage_assert(u.period_start='2024-02-28' and u.period_end='2024-03-28', 'Leap day and billing day 28');
@@ -155,13 +160,50 @@ begin
   perform pg_temp.usage_reject(format('select * from public.get_retainer_period_usage(%L,%L)',a.id,'2026-09-01'),'22023','fractional-minute');
   a := pg_temp.usage_agreement(0,15,'2026-08-15',null,0.30,1);
   perform pg_temp.usage_entry(a.customer_id,'2026-09-01',1);
-  update public.customer_billing_agreements set overage_hourly_rate=0.90 where id=a.id;
   perform pg_temp.usage_entry(a.customer_id,'2026-09-02',1);
   select * into u from public.get_retainer_period_usage(a.id,'2026-09-01');
   perform pg_temp.usage_assert(u.included_minutes_available=0 and u.overage_minutes=2
-    and u.overage_amount=0.03 and (u.allocations->0->>'overage_amount')::numeric=0.01
-    and (u.allocations->1->>'overage_amount')::numeric=0.02,
-    'Zero allowance: exact captured rates, half-cent ties rounded per entry, summary sums line cents');
+    and u.overage_amount=0.01 and round(1::numeric*0.30/60,2)*2=0.02
+    and not exists(select from jsonb_array_elements(u.allocations) item where item ? 'overage_amount'),
+    'Two one-minute overages at 0.30/hour: aggregate 0.01, not per-entry 0.02; no allocation dollar totals');
+  -- Conflicting rates in excluded records must not affect this period.
+  update public.customer_billing_agreements set overage_hourly_rate=999 where id=a.id;
+  perform pg_temp.usage_entry(a.customer_id,'2026-09-03',1,false);
+  ignored := pg_temp.usage_entry(a.customer_id,'2026-09-04',1);
+  update public.time_entries set voided_at=now(),void_reason='Rate exclusion regression' where id=ignored;
+  perform pg_temp.usage_entry(a.customer_id,'2026-09-15',1);
+  select * into v from public.get_retainer_period_usage(a.id,'2026-09-01');
+  perform pg_temp.usage_assert(to_jsonb(u)=to_jsonb(v), 'Rate consistency ignores voided, non-billable and outside-period rows, and mutable parent rate');
+  -- One minute + sixteen minutes of overage, after a partial allowance boundary.
+  a := pg_temp.usage_agreement(0.25,15,'2026-08-15',null,125,1);
+  perform pg_temp.usage_entry(a.customer_id,'2026-09-01',16);
+  perform pg_temp.usage_entry(a.customer_id,'2026-09-02',16);
+  select * into u from public.get_retainer_period_usage(a.id,'2026-09-01');
+  perform pg_temp.usage_assert(u.rounded_minutes_used=32 and u.included_minutes_used=15
+    and u.overage_minutes=17 and u.overage_amount=35.42
+    and round(1::numeric*125/60,2)+round(16::numeric*125/60,2)=35.41
+    and (u.allocations->0->>'included_minutes')::numeric=15
+    and (u.allocations->0->>'overage_minutes')::numeric=1
+    and (u.allocations->1->>'overage_minutes')::numeric=16
+    and not exists(select from jsonb_array_elements(u.allocations) item where item ? 'overage_amount'),
+    'Partial allocation unchanged; total 17 overage minutes at 125/hour rounds once to 35.42, not 35.41');
+  update public.customer_billing_agreements set overage_hourly_rate=126 where id=a.id;
+  ignored := pg_temp.usage_entry(a.customer_id,'2026-09-03',1);
+  perform pg_temp.usage_reject(format('select * from public.get_retainer_period_usage(%L,%L)',a.id,'2026-09-01'),'22023','Conflicting hourly-rate');
+  update public.time_entries set voided_at=now(),void_reason='Conflicting rate removed' where id=ignored;
+  select * into v from public.get_retainer_period_usage(a.id,'2026-09-01');
+  perform pg_temp.usage_assert(to_jsonb(u)=to_jsonb(v), 'Voiding conflicting rate restores period result');
+  -- Rates must be unambiguous even before the allowance has been exhausted.
+  a := pg_temp.usage_agreement();
+  perform pg_temp.usage_entry(a.customer_id,'2026-09-01',1);
+  update public.customer_billing_agreements set overage_hourly_rate=121 where id=a.id;
+  perform pg_temp.usage_entry(a.customer_id,'2026-09-02',1);
+  perform pg_temp.usage_reject(format('select * from public.get_retainer_period_usage(%L,%L)',a.id,'2026-09-01'),'22023','Conflicting hourly-rate');
+  a := pg_temp.usage_agreement(0,15,'2026-08-15',null,0,1);
+  perform pg_temp.usage_entry(a.customer_id,'2026-09-01',17);
+  select * into u from public.get_retainer_period_usage(a.id,'2026-09-01');
+  perform pg_temp.usage_assert(u.overage_minutes=17 and u.overage_amount=0, 'Zero captured rate remains valid');
+  raise notice 'PASS: aggregate-once cent rounding, 17 minutes at 125/hour, partial allocation, no entry dollar amounts and scoped rate conflicts';
   a := pg_temp.usage_agreement(0,15,'2026-08-15',null,9999999999.99,2147483646);
   perform pg_temp.usage_entry(a.customer_id,'2026-09-01',2147483647);
   select * into u from public.get_retainer_period_usage(a.id,'2026-09-01');
@@ -188,7 +230,7 @@ begin
   update public.customer_billing_agreements set rollover_enabled=true where id=a.id;
   perform pg_temp.usage_entry(a.customer_id,'2026-09-02',18);
   perform pg_temp.usage_reject(format('select * from public.get_retainer_period_usage(%L,%L)',a.id,'2026-09-01'),'22023','Conflicting allowance');
-  raise notice 'PASS: exact hour conversion, fractional-minute rejection, zero allowance, per-entry money, overflow, unsupported rollover and conflicting snapshots';
+  raise notice 'PASS: exact hour conversion, fractional-minute rejection, zero allowance, period money, overflow, unsupported rollover and conflicting snapshots';
 
   perform pg_temp.usage_reject('select * from public.get_retainer_period_usage(null,current_date)','22023');
   perform pg_temp.usage_reject('select * from public.get_retainer_period_usage(gen_random_uuid(),current_date)','P0002');
