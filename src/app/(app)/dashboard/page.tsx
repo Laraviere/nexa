@@ -21,7 +21,7 @@ export default function DashboardPage() {
           Your workspace is set up
         </h2>
         <p className="mt-2 max-w-xl leading-7 text-slate-600">
-          Customers, services, time, and billing tools will come together here
+          Customers, time, and billing tools will come together here
           as Nexa grows.
         </p>
       </section>
