@@ -150,6 +150,50 @@ export type Database = {
         }
         Relationships: []
       }
+      running_timers: {
+        Row: {
+          created_at: string
+          customer_id: string
+          description: string
+          hourly_rate: number | null
+          id: string
+          is_billable: boolean
+          started_at: string
+          stop_requested_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          description: string
+          hourly_rate?: number | null
+          id?: string
+          is_billable: boolean
+          started_at: string
+          stop_requested_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          description?: string
+          hourly_rate?: number | null
+          id?: string
+          is_billable?: boolean
+          started_at?: string
+          stop_requested_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "running_timers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_entries: {
         Row: {
           actual_minutes: number
@@ -316,6 +360,7 @@ export type Database = {
       }
     }
     Functions: {
+      cancel_time_timer: { Args: { p_timer_id: string }; Returns: boolean }
       change_customer_billing_terms: {
         Args: {
           p_bill_in_advance: boolean
@@ -367,6 +412,10 @@ export type Database = {
           remaining_included_minutes: number
           rounded_minutes_used: number
         }[]
+      }
+      stop_time_timer: {
+        Args: { p_hourly_rate?: number; p_timer_id: string }
+        Returns: Json
       }
     }
     Enums: {

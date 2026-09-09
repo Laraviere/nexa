@@ -82,7 +82,9 @@ test("retainer usage UI: real authenticated customer pages use local authoritati
     assert.equal(authoritative.rounded_minutes_used,75); assert.equal(authoritative.overage_minutes,15); assert.equal(authoritative.overage_amount,31.25);
     const allocatedPage=await page(route);
     html=panel(allocatedPage); metric(html,"Used","1 hr 15 min"); metric(html,"Remaining","0 min"); metric(html,"Overage","15 min");
-    assert.ok(html.includes(new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(authoritative.overage_amount)));
+    // React may stream the charge after a placeholder in the initial section.
+    // Verify its labeled metric in the complete response, not serialized RSC data.
+    metric(allocatedPage,"Overage charge",new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(authoritative.overage_amount).replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
     assert.ok(html.includes(`dateTime="${authoritative.period_start}"`)); assert.ok(html.includes(`dateTime="${authoritative.period_end}"`));
     const allocationRows=[...allocatedPage.matchAll(/<li\b[\s\S]*?<\/li>/g)].map(([value])=>value).filter((value)=>value.includes(">Rounded</dt>"));
     assert.equal(allocationRows.length,3); metric(allocationRows[2],"Rounded","30 min"); metric(allocationRows[2],"Included","15 min"); metric(allocationRows[2],"Overage","15 min");
@@ -91,7 +93,8 @@ test("retainer usage UI: real authenticated customer pages use local authoritati
     const hourlyHtml=await page(`/customers/${hourly}`); assert.ok(hourlyHtml.includes("No retainer")); assert.ok(!hourlyHtml.includes('id="retainer-usage"'));
     const zero=await customer("Local usage zero allowance");
     await agreement(zero,{effective_date:today,included_hours:0}); await entry(zero,18);
-    html=panel(await page(`/customers/${zero}`)); metric(html,"Included","No included hours"); metric(html,"Used","30 min"); metric(html,"Overage","30 min"); assert.ok(html.includes("$62.50"));
+    const zeroPage=await page(`/customers/${zero}`);
+    html=panel(zeroPage); metric(html,"Included","No included hours"); metric(html,"Used","30 min"); metric(html,"Overage","30 min"); metric(zeroPage,"Overage charge","\\$62\\.50");
     const rollover=await customer("Local usage unsupported rollover");
     await agreement(rollover,{effective_date:today,rollover_enabled:true});
     const rolloverHtml=await page(`/customers/${rollover}`);
