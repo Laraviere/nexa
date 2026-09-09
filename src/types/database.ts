@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -155,9 +150,170 @@ export type Database = {
         }
         Relationships: []
       }
+      time_entries: {
+        Row: {
+          actual_minutes: number
+          billing_agreement_id: string | null
+          billing_cycle_day_snapshot: number | null
+          created_at: string
+          customer_id: string
+          description: string
+          ended_at: string | null
+          hourly_rate: number | null
+          id: string
+          included_hours_snapshot: number | null
+          is_billable: boolean
+          rollover_enabled_snapshot: boolean | null
+          rounded_minutes: number
+          rounding_increment_minutes: number
+          started_at: string | null
+          updated_at: string
+          void_reason: string | null
+          voided_at: string | null
+          work_date: string
+        }
+        Insert: {
+          actual_minutes: number
+          billing_agreement_id?: string | null
+          billing_cycle_day_snapshot?: number | null
+          created_at?: string
+          customer_id: string
+          description: string
+          ended_at?: string | null
+          hourly_rate?: number | null
+          id?: string
+          included_hours_snapshot?: number | null
+          is_billable?: boolean
+          rollover_enabled_snapshot?: boolean | null
+          rounded_minutes?: number
+          rounding_increment_minutes?: number
+          started_at?: string | null
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          work_date: string
+        }
+        Update: {
+          actual_minutes?: number
+          billing_agreement_id?: string | null
+          billing_cycle_day_snapshot?: number | null
+          created_at?: string
+          customer_id?: string
+          description?: string
+          ended_at?: string | null
+          hourly_rate?: number | null
+          id?: string
+          included_hours_snapshot?: number | null
+          is_billable?: boolean
+          rollover_enabled_snapshot?: boolean | null
+          rounded_minutes?: number
+          rounding_increment_minutes?: number
+          started_at?: string | null
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_agreement_customer_fk"
+            columns: ["billing_agreement_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_billing_agreements"
+            referencedColumns: ["id", "customer_id"]
+          },
+          {
+            foreignKeyName: "time_entries_customer_fk"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      unbilled_time_entries: {
+        Row: {
+          actual_minutes: number | null
+          billing_agreement_id: string | null
+          billing_cycle_day_snapshot: number | null
+          created_at: string | null
+          customer_id: string | null
+          description: string | null
+          ended_at: string | null
+          hourly_rate: number | null
+          id: string | null
+          included_hours_snapshot: number | null
+          is_billable: boolean | null
+          rollover_enabled_snapshot: boolean | null
+          rounded_minutes: number | null
+          rounding_increment_minutes: number | null
+          started_at: string | null
+          updated_at: string | null
+          void_reason: string | null
+          voided_at: string | null
+          work_date: string | null
+        }
+        Insert: {
+          actual_minutes?: number | null
+          billing_agreement_id?: string | null
+          billing_cycle_day_snapshot?: number | null
+          created_at?: string | null
+          customer_id?: string | null
+          description?: string | null
+          ended_at?: string | null
+          hourly_rate?: number | null
+          id?: string | null
+          included_hours_snapshot?: number | null
+          is_billable?: boolean | null
+          rollover_enabled_snapshot?: boolean | null
+          rounded_minutes?: number | null
+          rounding_increment_minutes?: number | null
+          started_at?: string | null
+          updated_at?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          work_date?: string | null
+        }
+        Update: {
+          actual_minutes?: number | null
+          billing_agreement_id?: string | null
+          billing_cycle_day_snapshot?: number | null
+          created_at?: string | null
+          customer_id?: string | null
+          description?: string | null
+          ended_at?: string | null
+          hourly_rate?: number | null
+          id?: string | null
+          included_hours_snapshot?: number | null
+          is_billable?: boolean | null
+          rollover_enabled_snapshot?: boolean | null
+          rounded_minutes?: number | null
+          rounding_increment_minutes?: number | null
+          started_at?: string | null
+          updated_at?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          work_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_agreement_customer_fk"
+            columns: ["billing_agreement_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer_billing_agreements"
+            referencedColumns: ["id", "customer_id"]
+          },
+          {
+            foreignKeyName: "time_entries_customer_fk"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       change_customer_billing_terms: {
@@ -214,12 +370,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -243,11 +399,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -268,11 +424,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -293,11 +449,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -310,11 +466,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
