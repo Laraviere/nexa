@@ -3,8 +3,8 @@ import { isCustomerId } from "@/lib/customers/validation";
 export type CreateInvoiceArgs = Database["public"]["Functions"]["create_manual_invoice"]["Args"];
 export type CreateInvoiceResult = Database["public"]["Functions"]["create_manual_invoice"]["Returns"][number];
 export const units = { hour: "Hour", minute: "Minute", flat: "Flat fee", each: "Each", mile: "Mile", month: "Month", custom: "Custom" } as const;
-export const statuses = { draft: "Draft", sent: "Finalized", void: "Void" } as const;
-export type Line = { description: string; quantity: string; unit: string; unit_rate: string };
+export const statuses = { draft: "Draft", ready: "Ready", sent: "Sent", void: "Void" } as const;
+export type Line = { description: string; quantity: string; unit: string; unit_rate: string; tax_amount?: string };
 export type Draft = { customer_id: string; issue_date: string; notes: string; terms: string; items: Line[] };
 export type InvoiceState = { message?: string; uncertain?: boolean; invoiceId?: string };
 export function validDecimal(value: string, whole: number, scale: number, positive = false) {
@@ -26,13 +26,23 @@ export function invoiceInput(raw: unknown, requestId: string): { args?: CreateIn
     if (typeof line.unit_rate !== "string" || !validDecimal(line.unit_rate,10,2)) return { message: `Line ${index + 1}: enter a nonnegative rate with up to 2 decimal places and 10 whole digits.` };
     if (!Object.hasOwn(units,line.unit)) return { message: `Line ${index + 1}: choose a valid unit.` };
   }
+  if (d.items.some(l=>l.tax_amount!==undefined && (typeof l.tax_amount!=="string" || !validDecimal(l.tax_amount,22,2)))) return {message:"Check the tax amounts."};
   if (typeof d.notes !== "string" || typeof d.terms !== "string") return { message: "Check the notes and terms." };
   return { args: { p_customer_id: d.customer_id, p_issue_date: d.issue_date, p_request_id: requestId,
     p_notes: d.notes || undefined, p_terms: d.terms || undefined,
-    p_items: d.items.map(l => ({ description: l.description, quantity: l.quantity, unit: l.unit, unit_rate: l.unit_rate })) } };
+    p_items: d.items.map(l => ({ description: l.description, quantity: l.quantity, unit: l.unit, unit_rate: l.unit_rate, ...(l.tax_amount!==undefined?{tax_amount:l.tax_amount}:{}) })) } };
 }
 // Supplemental preview only. Saved financial values always come from the DB.
 export function previewTotal(items: Line[]) {
   if (items.some(l => !validDecimal(l.quantity,12,8,true) || !validDecimal(l.unit_rate,10,2))) return null;
   return items.reduce((sum,l) => sum + Math.round(Number(l.quantity)*Number(l.unit_rate)*100)/100,0);
+}
+
+// Informational date-only preview; the invoice trigger owns the persisted date.
+export function previewDueDate(issueDate: string, paymentDays: number) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(issueDate) || !Number.isInteger(paymentDays) || paymentDays<0) return null;
+  const date = new Date(`${issueDate}T12:00:00Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0,10)!==issueDate) return null;
+  date.setUTCDate(date.getUTCDate()+paymentDays);
+  return date.toISOString().slice(0,10);
 }

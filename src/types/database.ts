@@ -155,6 +155,97 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_edit_requests: {
+        Row: {
+          created_at: string
+          invoice_id: string
+          payload: Json
+          previous_invoice: Json
+          previous_items: Json
+          request_id: string
+        }
+        Insert: {
+          created_at?: string
+          invoice_id: string
+          payload: Json
+          previous_invoice: Json
+          previous_items: Json
+          request_id: string
+        }
+        Update: {
+          created_at?: string
+          invoice_id?: string
+          payload?: Json
+          previous_invoice?: Json
+          previous_items?: Json
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_edit_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_totals"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_edit_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_generation_requests: {
+        Row: {
+          as_of_date: string
+          created_at: string
+          customer_id: string
+          invoice_id: string | null
+          request_id: string
+          request_payload: Json
+        }
+        Insert: {
+          as_of_date: string
+          created_at?: string
+          customer_id: string
+          invoice_id?: string | null
+          request_id: string
+          request_payload: Json
+        }
+        Update: {
+          as_of_date?: string
+          created_at?: string
+          customer_id?: string
+          invoice_id?: string | null
+          request_id?: string
+          request_payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_generation_requests_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_generation_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: true
+            referencedRelation: "invoice_totals"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_generation_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: true
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           amount: number
@@ -170,6 +261,7 @@ export type Database = {
           quantity: number
           released_at: string | null
           source_type: string
+          superseded_at: string | null
           tax_amount: number
           unit: string
           unit_rate: number
@@ -189,6 +281,7 @@ export type Database = {
           quantity: number
           released_at?: string | null
           source_type?: string
+          superseded_at?: string | null
           tax_amount?: number
           unit: string
           unit_rate: number
@@ -208,6 +301,7 @@ export type Database = {
           quantity?: number
           released_at?: string | null
           source_type?: string
+          superseded_at?: string | null
           tax_amount?: number
           unit?: string
           unit_rate?: number
@@ -528,8 +622,13 @@ export type Database = {
           actual_minutes: number | null
           billing_agreement_id: string | null
           billing_cycle_day_snapshot: number | null
+          billing_status: string | null
+          blocked_minutes: number | null
+          chargeable_minutes: number | null
+          covered_minutes: number | null
           created_at: string | null
           customer_id: string | null
+          deferred_minutes: number | null
           description: string | null
           ended_at: string | null
           hourly_rate: number | null
@@ -603,6 +702,31 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_composed_invoice: {
+        Args: {
+          p_as_of_date: string
+          p_custom_items: Json
+          p_customer_id: string
+          p_issue_date: string
+          p_notes?: string
+          p_request_id: string
+          p_revision: string
+          p_selected_candidate_ids: string[]
+          p_terms?: string
+        }
+        Returns: {
+          as_of_date: string
+          company_name_snapshot: string
+          due_date: string
+          invoice_id: string
+          invoice_number: number
+          issue_date: string
+          status: string
+          subtotal: number
+          tax_total: number
+          total: number
+        }[]
+      }
       create_manual_invoice: {
         Args: {
           p_customer_id: string
@@ -618,6 +742,28 @@ export type Database = {
           invoice_id: string
           invoice_number: number
           issue_date: string
+          status: string
+          subtotal: number
+          tax_total: number
+          total: number
+        }[]
+      }
+      generate_customer_invoice: {
+        Args: {
+          p_as_of_date?: string
+          p_customer_id: string
+          p_issue_date: string
+          p_notes?: string
+          p_request_id: string
+          p_terms?: string
+        }
+        Returns: {
+          as_of_date: string
+          due_date: string
+          invoice_id: string
+          invoice_number: number
+          issue_date: string
+          outcome: string
           status: string
           subtotal: number
           tax_total: number
@@ -640,9 +786,74 @@ export type Database = {
           rounded_minutes_used: number
         }[]
       }
+      get_time_entry_invoiceability: {
+        Args: { p_as_of_date: string; p_time_entry_id: string }
+        Returns: {
+          available_ranges: unknown
+          billing_status: string
+          blocked_minutes: number
+          chargeable_minutes: number
+          covered_minutes: number
+          deferred_minutes: number
+          invoiced_minutes: number
+          uninvoiced_minutes: number
+        }[]
+      }
+      invoice_candidate_plan: {
+        Args: { p_as_of_date: string; p_customer_id: string }
+        Returns: Json
+      }
+      invoice_edit_preview_state: {
+        Args: { p_as_of_date: string; p_invoice_id: string }
+        Returns: Json
+      }
+      invoice_preview_state: {
+        Args: { p_as_of_date: string; p_customer_id: string }
+        Returns: Json
+      }
+      preview_customer_invoice: {
+        Args: { p_as_of_date?: string; p_customer_id: string }
+        Returns: {
+          as_of_date: string
+          candidates: Json
+          revision: string
+        }[]
+      }
+      preview_invoice_edit: {
+        Args: { p_as_of_date: string; p_invoice_id: string }
+        Returns: {
+          as_of_date: string
+          candidates: Json
+          revision: string
+        }[]
+      }
       stop_time_timer: {
         Args: { p_hourly_rate?: number; p_timer_id: string }
         Returns: Json
+      }
+      update_composed_invoice: {
+        Args: {
+          p_as_of_date: string
+          p_custom_items: Json
+          p_descriptions?: Json
+          p_invoice_id: string
+          p_issue_date: string
+          p_notes?: string
+          p_request_id: string
+          p_revision: string
+          p_selected_candidate_ids: string[]
+          p_terms?: string
+        }
+        Returns: {
+          due_date: string
+          invoice_id: string
+          invoice_number: number
+          issue_date: string
+          status: string
+          subtotal: number
+          tax_total: number
+          total: number
+        }[]
       }
     }
     Enums: {

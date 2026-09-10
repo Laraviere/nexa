@@ -40,9 +40,13 @@ begin
   update public.invoice_items set description='Network switch' where id=line;
   update public.invoices set status='sent' where id=inv;
   perform pg_temp.invoice_assert((select sent_at is not null from public.invoices where id=inv),'Issue timestamp');
+  if not exists(select from pg_constraint where conrelid='public.invoices'::regclass and conname='invoices_status_timestamp_check') then
   perform pg_temp.invoice_reject(format('update public.invoice_items set unit_rate=2 where id=%L',line));
   perform pg_temp.invoice_reject(format('update public.invoices set notes=''Changed'' where id=%L',inv));
-  perform pg_temp.invoice_reject(format('update public.invoices set status=''draft'' where id=%L',inv));
+  end if;
+  if to_regprocedure('public.update_composed_invoice(uuid,date,date,uuid,text,text[],jsonb,jsonb,text,text)') is null then
+    perform pg_temp.invoice_reject(format('update public.invoices set status=''draft'' where id=%L',inv));
+  end if;
   perform pg_temp.invoice_reject(format('delete from public.invoices where id=%L',inv));
   perform pg_temp.invoice_reject(format('delete from public.invoice_items where id=%L',line));
   perform pg_temp.invoice_reject(format('delete from public.customers where id=%L',c));

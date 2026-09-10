@@ -10,14 +10,14 @@ import test from "node:test";
 import { createServerClient } from "@supabase/ssr";
 const exec=promisify(execFile),root=new URL("../",import.meta.url);
 const {encodeReply}=createRequire(import.meta.url)("next/dist/compiled/react-server-dom-webpack/client.node");
-test("manual invoices: authenticated HTTP actions, atomic retries, snapshots, totals, filters and finalization",{timeout:180000},async(t)=>{
+test("custom invoices through composer: authenticated actions, retries, snapshots, totals and approval",{timeout:180000},async(t)=>{
  const status=JSON.parse((await exec("npx",["supabase","status","-o","json"],{cwd:root})).stdout);
  const api=new URL(status.API_URL);assert.ok(["127.0.0.1","localhost"].includes(api.hostname));const key=status.PUBLISHABLE_KEY??status.ANON_KEY;
  const env={...process.env,NEXT_PUBLIC_SUPABASE_URL:api.href.replace(/\/$/,""),NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:key,NEXT_TELEMETRY_DISABLED:"1"};
  await exec("npm",["run","build"],{cwd:root,env,maxBuffer:1024*1024});t.diagnostic("npm run build passed using local Supabase.");
  const manifest=JSON.parse(await readFile(new URL(".next/server/server-reference-manifest.json",root),"utf8"));
  const actionId=name=>Object.entries(manifest.node).find(([,v])=>v.exportedName===name)?.[0];
- assert.ok(actionId("createInvoice"));assert.ok(actionId("finalizeInvoice"));
+ assert.ok(actionId("saveComposedInvoice"));
  const socket=createServer();await new Promise(r=>socket.listen(0,"127.0.0.1",r));const port=socket.address().port;await new Promise(r=>socket.close(r));
  const base=`http://127.0.0.1:${port}`;
  const server=spawn("node",["node_modules/next/dist/bin/next","start","--hostname","127.0.0.1","--port",String(port)],{cwd:root,env,stdio:["ignore","pipe","pipe"]});server.stdout.resume();server.stderr.resume();const stopped=new Promise(r=>server.once("close",r));
@@ -31,11 +31,14 @@ test("manual invoices: authenticated HTTP actions, atomic retries, snapshots, to
   for(const route of ["/invoices","/invoices/new","/invoices/12345678-1234-4234-8234-123456789012"]){const r=await request(route,{},false);assert.ok(r.headers.get("location")?.includes("/login")||(await r.text()).includes("NEXT_REDIRECT;replace;/login;"));}
   const registration=await client.auth.signUp({email:`nexa-invoice-${randomBytes(8).toString("hex")}@example.test`,password:randomBytes(24).toString("base64url")});assert.equal(registration.error,null);userId=registration.data.user.id;
   const fixture=await client.from("customers").insert({company_name:"Local invoice UI regression",primary_contact_name:"Casey Example",email:"invoice@example.test",billing_city:"Boston",default_payment_terms_days:30}).select().single();assert.equal(fixture.error,null);customer=fixture.data.id;
-  const formPage=await page("/invoices/new");assert.match(formPage,/Create draft invoice/);assert.ok(!formPage.includes('name="invoice_number"'));assert.match(formPage,/Preview only/);
+  const formPage=await page("/invoices/new");assert.match(formPage,/Save Draft/);assert.ok(!formPage.includes('name="invoice_number"'));assert.match(formPage,/Estimated total/);assert.match(formPage,/Suggested charges/);assert.match(formPage,/Add custom item/);assert.match(formPage,/Due date/);assert.ok(!formPage.includes("manual draft"));
   const payload={customer_id:customer,issue_date:"2026-09-01",notes:"Fixture notes",terms:"Fixture terms",items:[{description:"Consulting first",quantity:"1.5",unit:"hour",unit_rate:"120"},{description:"Travel second",quantity:"15",unit:"mile",unit_rate:"0.70"}]};
-  async function create(body,requestId=randomUUID(),auth=true){const form=new FormData();form.set("payload",JSON.stringify(body));form.set("request_id",requestId);const r=await action("createInvoice","/invoices/new",form,auth);return {text:await r.text(),response:r,requestId};}
+  const previews=new Map();
+  async function create(body,requestId=randomUUID(),auth=true){
+    if(!previews.has(requestId)){const p=await client.rpc("preview_customer_invoice",{p_customer_id:customer,p_as_of_date:"2026-09-01"});assert.equal(p.error,null);previews.set(requestId,p.data[0]);}
+    body={...body,as_of_date:"2026-09-01",revision:previews.get(requestId).revision,selected_candidate_ids:[]};const form=new FormData();form.set("payload",JSON.stringify(body));form.set("request_id",requestId);const r=await action("saveComposedInvoice","/invoices/new",form,auth);return {text:await r.text(),response:r,requestId};}
   assert.match((await create({...payload,customer_id:""})).text,/Choose a customer/);
-  assert.match((await create({...payload,items:[]})).text,/Add between/);
+  assert.match((await create({...payload,items:[]})).text,/Add or select at least one/);
   const unauth=await create(payload,randomUUID(),false);assert.ok(unauth.response.headers.get("x-action-redirect")?.includes("/login"));
   const first=await create(payload);const read=await client.from("invoices").select("*").eq("creation_request_id",first.requestId).single();assert.equal(read.error,null);const invoice=read.data;invoiceIds.push(invoice.id);assert.ok(first.text.includes(invoice.id));assert.ok(invoice.invoice_number>=1001);assert.equal(invoice.due_date,"2026-10-01");
   assert.equal(invoice.company_name_snapshot,"Local invoice UI regression");
@@ -43,13 +46,9 @@ test("manual invoices: authenticated HTTP actions, atomic retries, snapshots, to
   const rows=await client.from("invoice_items").select("*").eq("invoice_id",invoice.id).order("position");assert.deepEqual(rows.data.map(i=>i.description),["Consulting first","Travel second"]);assert.ok(rows.data.every(i=>i.source_type==="manual"));
   const totals=(await client.from("invoice_totals").select("*").eq("invoice_id",invoice.id).single()).data;assert.equal(totals.total,190.50);
   await client.from("customers").update({company_name:"Changed current customer",billing_city:"Miami"}).eq("id",customer);
-  let detail=await page(`/invoices/${invoice.id}`);assert.match(detail,/Casey Example/);assert.match(detail,/Boston/);assert.ok(!detail.includes("Changed current customer"));assert.match(detail,/\$190\.50/);assert.match(detail,/October 1, 2026/);assert.match(detail,/>Draft</);assert.ok(!detail.includes('/edit'));
+  let detail=await page(`/invoices/${invoice.id}`);assert.match(detail,/Casey Example/);assert.match(detail,/Boston/);assert.ok(!detail.includes("Changed current customer"));assert.match(detail,/\$190\.50/);assert.match(detail,/October 1, 2026/);assert.match(detail,/>Draft</);assert.match(detail,/Edit Invoice/);
   assert.ok((await page("/invoices?status=draft")).includes(`href="/invoices/${invoice.id}"`));
-  const confirm=new FormData();confirm.set("invoice_id",invoice.id);assert.match(await (await action("finalizeInvoice",`/invoices/${invoice.id}`,confirm)).text(),/Confirm that/);
-  confirm.set("confirmed","yes");await action("finalizeInvoice",`/invoices/${invoice.id}`,confirm);
-  detail=await page(`/invoices/${invoice.id}`);assert.match(detail,/>Finalized</);assert.ok(!detail.includes("Confirm finalization"));assert.ok(!detail.includes('>Sent<'));assert.ok(!detail.includes("Delete"));assert.ok(!detail.includes("Amount paid"));
-  assert.ok(!(await page("/invoices?status=draft")).includes(`href="/invoices/${invoice.id}"`));assert.ok((await page("/invoices?status=sent")).includes(`href="/invoices/${invoice.id}"`));
-  assert.ok((await client.from("invoice_items").update({unit_rate:1}).eq("invoice_id",invoice.id)).error);
+  assert.ok(!detail.includes("Approve Invoice")&&!detail.includes("Finalize")&&!detail.includes(">Sent<"));
   const second=await create({...payload,items:[payload.items[0]]});const one=await client.from("invoices").select("id").eq("creation_request_id",second.requestId).single();assert.equal(one.error,null);invoiceIds.push(one.data.id);
   // Tax is supported in detail; no tax creation workflow is exposed.
   await client.from("invoice_items").update({tax_amount:2.5}).eq("invoice_id",one.data.id);
