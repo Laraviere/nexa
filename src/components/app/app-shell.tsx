@@ -8,7 +8,7 @@ const navigation: ReadonlyArray<{ label: string; href?: string }> = [
   { label: "Time", href: "/time" },
   { label: "Invoices", href: "/invoices" },
   { label: "Payments" },
-  { label: "Settings" },
+  { label: "Settings", href: "/settings" },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {

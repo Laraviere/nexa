@@ -185,6 +185,13 @@ export type Database = {
             foreignKeyName: "invoice_edit_requests_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_payment_summary"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_edit_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoice_totals"
             referencedColumns: ["invoice_id"]
           },
@@ -229,6 +236,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_generation_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: true
+            referencedRelation: "invoice_payment_summary"
+            referencedColumns: ["invoice_id"]
           },
           {
             foreignKeyName: "invoice_generation_requests_invoice_id_fkey"
@@ -319,11 +333,85 @@ export type Database = {
             foreignKeyName: "invoice_items_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
+            referencedRelation: "invoice_payment_summary"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
             referencedRelation: "invoice_totals"
             referencedColumns: ["invoice_id"]
           },
           {
             foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string
+          reference: string | null
+          request_id: string
+          updated_at: string
+          void_reason: string | null
+          voided_at: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          payment_date?: string
+          payment_method: string
+          reference?: string | null
+          request_id: string
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+          reference?: string | null
+          request_id?: string
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_payment_summary"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_totals"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
@@ -481,6 +569,33 @@ export type Database = {
           },
         ]
       }
+      payment_settings: {
+        Row: {
+          card_enabled: boolean
+          cash_enabled: boolean
+          check_enabled: boolean
+          created_at: string
+          singleton: boolean
+          updated_at: string
+        }
+        Insert: {
+          card_enabled?: boolean
+          cash_enabled?: boolean
+          check_enabled?: boolean
+          created_at?: string
+          singleton?: boolean
+          updated_at?: string
+        }
+        Update: {
+          card_enabled?: boolean
+          cash_enabled?: boolean
+          check_enabled?: boolean
+          created_at?: string
+          singleton?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       running_timers: {
         Row: {
           created_at: string
@@ -608,6 +723,19 @@ export type Database = {
       }
     }
     Views: {
+      invoice_payment_summary: {
+        Row: {
+          amount_paid: number | null
+          balance_due: number | null
+          invoice_id: string | null
+          invoice_status: string | null
+          invoice_total: number | null
+          latest_payment_date: string | null
+          payment_count: number | null
+          payment_status: string | null
+        }
+        Relationships: []
+      }
       invoice_totals: {
         Row: {
           invoice_id: string | null
@@ -827,6 +955,28 @@ export type Database = {
           revision: string
         }[]
       }
+      record_invoice_payment: {
+        Args: {
+          p_amount: number
+          p_invoice_id: string
+          p_notes?: string
+          p_payment_date: string
+          p_payment_method: string
+          p_reference?: string
+          p_request_id: string
+        }
+        Returns: {
+          amount_paid: number
+          balance_due: number
+          invoice_id: string
+          invoice_total: number
+          latest_payment_date: string
+          payment_count: number
+          payment_id: string
+          payment_status: string
+          payment_voided_at: string
+        }[]
+      }
       stop_time_timer: {
         Args: { p_hourly_rate?: number; p_timer_id: string }
         Returns: Json
@@ -854,6 +1004,50 @@ export type Database = {
           tax_total: number
           total: number
         }[]
+      }
+      update_payment_settings: {
+        Args: {
+          p_card_enabled: boolean
+          p_cash_enabled: boolean
+          p_check_enabled: boolean
+        }
+        Returns: {
+          card_enabled: boolean
+          cash_enabled: boolean
+          check_enabled: boolean
+          created_at: string
+          singleton: boolean
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_settings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      void_invoice_payment: {
+        Args: { p_payment_id: string; p_reason: string }
+        Returns: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string
+          reference: string | null
+          request_id: string
+          updated_at: string
+          void_reason: string | null
+          voided_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invoice_payments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
