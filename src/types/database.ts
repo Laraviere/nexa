@@ -155,6 +155,238 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_items: {
+        Row: {
+          amount: number
+          billed_minutes: number | null
+          billing_agreement_id: string | null
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          period_end: string | null
+          period_start: string | null
+          position: number
+          quantity: number
+          released_at: string | null
+          source_type: string
+          tax_amount: number
+          unit: string
+          unit_rate: number
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          billed_minutes?: number | null
+          billing_agreement_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          period_end?: string | null
+          period_start?: string | null
+          position: number
+          quantity: number
+          released_at?: string | null
+          source_type?: string
+          tax_amount?: number
+          unit: string
+          unit_rate: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          billed_minutes?: number | null
+          billing_agreement_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          period_end?: string | null
+          period_start?: string | null
+          position?: number
+          quantity?: number
+          released_at?: string | null
+          source_type?: string
+          tax_amount?: number
+          unit?: string
+          unit_rate?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_billing_agreement_id_fkey"
+            columns: ["billing_agreement_id"]
+            isOneToOne: false
+            referencedRelation: "customer_billing_agreements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_totals"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_time_allocations: {
+        Row: {
+          allocated_minutes: number
+          created_at: string
+          id: string
+          invoice_item_id: string
+          minute_end: number
+          minute_start: number
+          released_at: string | null
+          time_entry_id: string
+        }
+        Insert: {
+          allocated_minutes?: number
+          created_at?: string
+          id?: string
+          invoice_item_id: string
+          minute_end: number
+          minute_start: number
+          released_at?: string | null
+          time_entry_id: string
+        }
+        Update: {
+          allocated_minutes?: number
+          created_at?: string
+          id?: string
+          invoice_item_id?: string
+          minute_end?: number
+          minute_start?: number
+          released_at?: string | null
+          time_entry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_time_allocations_invoice_item_id_fkey"
+            columns: ["invoice_item_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_time_allocations_time_entry_id_fkey"
+            columns: ["time_entry_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_time_allocations_time_entry_id_fkey"
+            columns: ["time_entry_id"]
+            isOneToOne: false
+            referencedRelation: "unbilled_time_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          billing_address_line1_snapshot: string | null
+          billing_address_line2_snapshot: string | null
+          billing_city_snapshot: string | null
+          billing_country_snapshot: string | null
+          billing_postal_code_snapshot: string | null
+          billing_state_snapshot: string | null
+          company_name_snapshot: string
+          created_at: string
+          creation_request_id: string | null
+          creation_request_payload: Json | null
+          customer_id: string
+          due_date: string
+          email_snapshot: string | null
+          id: string
+          invoice_number: number
+          issue_date: string
+          notes: string | null
+          payment_terms_days_snapshot: number
+          phone_snapshot: string | null
+          primary_contact_name_snapshot: string | null
+          sent_at: string | null
+          status: string
+          terms: string | null
+          updated_at: string
+          void_reason: string | null
+          voided_at: string | null
+        }
+        Insert: {
+          billing_address_line1_snapshot?: string | null
+          billing_address_line2_snapshot?: string | null
+          billing_city_snapshot?: string | null
+          billing_country_snapshot?: string | null
+          billing_postal_code_snapshot?: string | null
+          billing_state_snapshot?: string | null
+          company_name_snapshot: string
+          created_at?: string
+          creation_request_id?: string | null
+          creation_request_payload?: Json | null
+          customer_id: string
+          due_date: string
+          email_snapshot?: string | null
+          id?: string
+          invoice_number?: never
+          issue_date?: string
+          notes?: string | null
+          payment_terms_days_snapshot: number
+          phone_snapshot?: string | null
+          primary_contact_name_snapshot?: string | null
+          sent_at?: string | null
+          status?: string
+          terms?: string | null
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Update: {
+          billing_address_line1_snapshot?: string | null
+          billing_address_line2_snapshot?: string | null
+          billing_city_snapshot?: string | null
+          billing_country_snapshot?: string | null
+          billing_postal_code_snapshot?: string | null
+          billing_state_snapshot?: string | null
+          company_name_snapshot?: string
+          created_at?: string
+          creation_request_id?: string | null
+          creation_request_payload?: Json | null
+          customer_id?: string
+          due_date?: string
+          email_snapshot?: string | null
+          id?: string
+          invoice_number?: never
+          issue_date?: string
+          notes?: string | null
+          payment_terms_days_snapshot?: number
+          phone_snapshot?: string | null
+          primary_contact_name_snapshot?: string | null
+          sent_at?: string | null
+          status?: string
+          terms?: string | null
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       running_timers: {
         Row: {
           created_at: string
@@ -282,6 +514,15 @@ export type Database = {
       }
     }
     Views: {
+      invoice_totals: {
+        Row: {
+          invoice_id: string | null
+          subtotal: number | null
+          tax_amount: number | null
+          total: number | null
+        }
+        Relationships: []
+      }
       unbilled_time_entries: {
         Row: {
           actual_minutes: number | null
@@ -294,57 +535,17 @@ export type Database = {
           hourly_rate: number | null
           id: string | null
           included_hours_snapshot: number | null
+          invoiced_minutes: number | null
           is_billable: boolean | null
           rollover_enabled_snapshot: boolean | null
           rounded_minutes: number | null
           rounding_increment_minutes: number | null
           started_at: string | null
+          uninvoiced_minutes: number | null
           updated_at: string | null
           void_reason: string | null
           voided_at: string | null
           work_date: string | null
-        }
-        Insert: {
-          actual_minutes?: number | null
-          billing_agreement_id?: string | null
-          billing_cycle_day_snapshot?: number | null
-          created_at?: string | null
-          customer_id?: string | null
-          description?: string | null
-          ended_at?: string | null
-          hourly_rate?: number | null
-          id?: string | null
-          included_hours_snapshot?: number | null
-          is_billable?: boolean | null
-          rollover_enabled_snapshot?: boolean | null
-          rounded_minutes?: number | null
-          rounding_increment_minutes?: number | null
-          started_at?: string | null
-          updated_at?: string | null
-          void_reason?: string | null
-          voided_at?: string | null
-          work_date?: string | null
-        }
-        Update: {
-          actual_minutes?: number | null
-          billing_agreement_id?: string | null
-          billing_cycle_day_snapshot?: number | null
-          created_at?: string | null
-          customer_id?: string | null
-          description?: string | null
-          ended_at?: string | null
-          hourly_rate?: number | null
-          id?: string | null
-          included_hours_snapshot?: number | null
-          is_billable?: boolean | null
-          rollover_enabled_snapshot?: boolean | null
-          rounded_minutes?: number | null
-          rounding_increment_minutes?: number | null
-          started_at?: string | null
-          updated_at?: string | null
-          void_reason?: string | null
-          voided_at?: string | null
-          work_date?: string | null
         }
         Relationships: [
           {
@@ -401,6 +602,27 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      create_manual_invoice: {
+        Args: {
+          p_customer_id: string
+          p_issue_date: string
+          p_items: Json
+          p_notes?: string
+          p_request_id: string
+          p_terms?: string
+        }
+        Returns: {
+          company_name_snapshot: string
+          due_date: string
+          invoice_id: string
+          invoice_number: number
+          issue_date: string
+          status: string
+          subtotal: number
+          tax_total: number
+          total: number
+        }[]
       }
       get_retainer_period_usage: {
         Args: { p_billing_agreement_id: string; p_reference_date: string }
