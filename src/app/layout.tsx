@@ -4,6 +4,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Nexa",
   description: "Internal operations for your IT consulting business.",
+  icons: {
+    apple: {
+      url: "/nexa-apple-touch-icon-v2.png",
+      sizes: "180x180",
+      type: "image/png",
+    },
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
