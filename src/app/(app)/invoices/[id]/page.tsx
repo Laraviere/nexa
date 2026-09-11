@@ -1,3 +1,4 @@
+import { sourceQuote } from "@/lib/quotes/server";
 import { invoicePayments } from "@/lib/payments/server";
 import { paymentStatuses } from "@/lib/payments/model";
 import { RecordPayment } from "@/components/payments/record-payment";
@@ -10,6 +11,7 @@ import { statuses,units } from "@/lib/invoices/model";
 export default async function InvoicePage({params}:{params:Promise<{id:string}>}) {
   const {invoice:v,items,totals} = await invoiceDetail((await params).id);
   const payments = await invoicePayments(v.id);
+  const quote = await sourceQuote(v.id);
   const address = [v.billing_address_line1_snapshot,v.billing_address_line2_snapshot,[v.billing_city_snapshot,v.billing_state_snapshot,v.billing_postal_code_snapshot].filter(Boolean).join(", "),v.billing_country_snapshot].filter(Boolean);
   return <div className="mx-auto max-w-4xl"><Link href="/invoices" className="text-sm font-medium text-cyan-700">← Invoices</Link><header className="mb-6 mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 flex-wrap items-center gap-3"><h1 className="break-words text-3xl font-semibold tracking-tight">Invoice #{v.invoice_number}</h1><span className="rounded-md bg-slate-100 ring-1 ring-slate-200 px-3 py-1 text-sm font-medium">{statuses[v.status as keyof typeof statuses]??v.status}</span></div>
@@ -18,6 +20,7 @@ export default async function InvoicePage({params}:{params:Promise<{id:string}>}
       {v.status!=="void"&&<Link href={`/invoices/${v.id}/edit`} className="shrink-0 rounded-lg border border-slate-300 bg-white px-5 py-3 text-center font-semibold">Edit Invoice</Link>}
       </div>
     </header>
+    {quote&&<p className="mb-5 text-sm text-slate-600">Created from <Link href={`/quotes/${quote.id}`} className="font-semibold text-cyan-700 underline">Quote Q-{quote.quote_number}</Link>.</p>}
     <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 sm:p-8"><div className="grid gap-6 border-b border-slate-200 pb-6 sm:grid-cols-2"><section className="min-w-0 break-words"><h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Bill to</h2><p className="font-semibold">{v.company_name_snapshot}</p>{[v.primary_contact_name_snapshot,v.email_snapshot,v.phone_snapshot,...address].filter(Boolean).map((value,i)=><p key={i} className="mt-1 text-sm text-slate-600">{value}</p>)}</section><dl className="space-y-3 text-sm sm:text-right"><div><dt className="text-slate-500">Issue date</dt><dd className="mt-1 font-medium">{formatBusinessDate(v.issue_date)}</dd></div><div><dt className="text-slate-500">Due date</dt><dd className="mt-1 font-medium">{formatBusinessDate(v.due_date)}</dd></div></dl></div>
       <section aria-label="Invoice line items" className="mt-5">
         <div aria-hidden="true" className="hidden grid-cols-[minmax(0,1fr)_6rem_7rem_8rem] gap-4 border-b border-slate-200 pb-3 text-xs font-medium uppercase tracking-wide text-slate-500 sm:grid"><span>Description</span><span className="text-right">Qty / unit</span><span className="text-right">Rate</span><span className="text-right">Amount</span></div>

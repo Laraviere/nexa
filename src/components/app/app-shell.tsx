@@ -6,6 +6,7 @@ const navigation: ReadonlyArray<{ label: string; href?: string }> = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Customers", href: "/customers" },
   { label: "Time", href: "/time" },
+  { label: "Quotes", href: "/quotes" },
   { label: "Invoices", href: "/invoices" },
   { label: "Payments" },
   { label: "Settings", href: "/settings" },

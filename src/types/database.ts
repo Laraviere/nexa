@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -596,6 +591,127 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_write_requests: {
+        Row: {
+          created_at: string
+          payload: Json
+          quote_id: string
+          request_id: string
+        }
+        Insert: {
+          created_at?: string
+          payload: Json
+          quote_id: string
+          request_id: string
+        }
+        Update: {
+          created_at?: string
+          payload?: Json
+          quote_id?: string
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_write_requests_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          company_name_snapshot: string
+          conversion_request_id: string
+          converted_invoice_id: string | null
+          created_at: string
+          customer_id: string
+          customer_snapshot: Json
+          expiration_date: string | null
+          id: string
+          items: Json
+          notes: string | null
+          quote_date: string
+          quote_number: number
+          revision: number
+          status: string
+          subtotal: number | null
+          terms: string | null
+          total: number | null
+          updated_at: string
+        }
+        Insert: {
+          company_name_snapshot: string
+          conversion_request_id?: string
+          converted_invoice_id?: string | null
+          created_at?: string
+          customer_id: string
+          customer_snapshot: Json
+          expiration_date?: string | null
+          id?: string
+          items: Json
+          notes?: string | null
+          quote_date: string
+          quote_number?: never
+          revision?: number
+          status?: string
+          subtotal?: number | null
+          terms?: string | null
+          total?: number | null
+          updated_at?: string
+        }
+        Update: {
+          company_name_snapshot?: string
+          conversion_request_id?: string
+          converted_invoice_id?: string | null
+          created_at?: string
+          customer_id?: string
+          customer_snapshot?: Json
+          expiration_date?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          quote_date?: string
+          quote_number?: never
+          revision?: number
+          status?: string
+          subtotal?: number | null
+          terms?: string | null
+          total?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_converted_invoice_id_fkey"
+            columns: ["converted_invoice_id"]
+            isOneToOne: true
+            referencedRelation: "invoice_payment_summary"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "quotes_converted_invoice_id_fkey"
+            columns: ["converted_invoice_id"]
+            isOneToOne: true
+            referencedRelation: "invoice_totals"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "quotes_converted_invoice_id_fkey"
+            columns: ["converted_invoice_id"]
+            isOneToOne: true
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       running_timers: {
         Row: {
           created_at: string
@@ -830,6 +946,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      change_quote_status: {
+        Args: { p_quote_id: string; p_revision: number; p_status: string }
+        Returns: string
+      }
+      convert_quote_to_invoice: {
+        Args: { p_issue_date: string; p_quote_id: string; p_revision: number }
+        Returns: string
+      }
       create_composed_invoice: {
         Args: {
           p_as_of_date: string
@@ -966,6 +1090,7 @@ export type Database = {
         Args: { p_as_of_date: string; p_customer_id: string }
         Returns: Json
       }
+      normalize_quote_items: { Args: { p_items: Json }; Returns: Json }
       preview_customer_invoice: {
         Args: { p_as_of_date?: string; p_customer_id: string }
         Returns: {
@@ -982,6 +1107,7 @@ export type Database = {
           revision: string
         }[]
       }
+      quote_items_total: { Args: { p_items: Json }; Returns: number }
       record_invoice_payment: {
         Args: {
           p_amount: number
@@ -1003,6 +1129,20 @@ export type Database = {
           payment_status: string
           payment_voided_at: string
         }[]
+      }
+      save_quote: {
+        Args: {
+          p_customer_id: string
+          p_expiration_date?: string
+          p_items: Json
+          p_notes?: string
+          p_quote_date: string
+          p_quote_id?: string
+          p_request_id: string
+          p_revision?: number
+          p_terms?: string
+        }
+        Returns: string
       }
       stop_time_timer: {
         Args: { p_hourly_rate?: number; p_timer_id: string }
@@ -1094,12 +1234,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1123,11 +1263,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1148,11 +1288,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1173,11 +1313,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1190,11 +1330,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

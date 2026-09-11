@@ -6,7 +6,7 @@ import type { InvoicePdfData } from "./data";
 
 // Permit long identifiers/URLs to wrap without dropping text.
 Font.registerHyphenationCallback(word => word.length > 24 ? word.match(/.{1,20}/gu) ?? [word] : [word]);
-function descriptionParts(text: string) {
+export function descriptionParts(text: string) {
   // Keep each table fragment small enough to stay together. Long descriptions
   // continue in subsequent fragments/pages; amounts appear only once.
   const parts: string[] = [];
@@ -21,7 +21,7 @@ function descriptionParts(text: string) {
 
 // Avoid inherited numeric lineHeight on fixed elements: repeated pagination
 // can multiply it in React PDF. Keep the footer height explicit.
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   page: { paddingTop: 144, paddingBottom: 60, paddingHorizontal: 42, fontFamily: "Helvetica", fontSize: 10, color: "#0f172a" },
   running: { position: "absolute", top: 30, left: 42, right: 42, height: 65, flexDirection: "row", justifyContent: "space-between", borderBottomWidth: 1.5, borderBottomColor: "#22b8cf", paddingBottom: 12 },
   brand: { fontSize: 25, fontFamily: "Helvetica-Bold", letterSpacing: -0.6 },
@@ -57,7 +57,7 @@ export function formatInvoiceQuantity(quantity: number, unit: string) {
   const labels: Record<string, [string, string]> = { hour: ["Hour", "Hours"], minute: ["Minute", "Minutes"], each: ["Each", "Each"], mile: ["Mile", "Miles"], month: ["Month", "Months"], custom: ["Custom", "Custom"] };
   return `${value} ${labels[unit]?.[quantity === 1 ? 0 : 1] ?? unit}`;
 }
-function Columns() {
+export function Columns() {
   return <View style={styles.columns}><Text style={styles.description}>DESCRIPTION</Text><Text style={styles.quantity}>QTY / UNIT</Text><Text style={styles.rate}>RATE</Text><Text style={styles.amount}>AMOUNT</Text></View>;
 }
 export function InvoiceDocument({ invoice: v, items, totals }: InvoicePdfData) {
