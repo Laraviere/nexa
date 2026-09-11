@@ -1,6 +1,6 @@
 "use client";
 import { useActionState } from "react";
-import { savePaymentSettings } from "@/actions/payments";
+import { saveChecksPayableTo, savePaymentSettings } from "@/actions/payments";
 import { paymentMethods, type PaymentSettings } from "@/lib/payments/model";
 export function PaymentSettingsForm({settings}:{settings:PaymentSettings}) {
   const [state,action,pending] = useActionState(savePaymentSettings,{});
@@ -10,5 +10,18 @@ export function PaymentSettingsForm({settings}:{settings:PaymentSettings}) {
     <p className="text-xs text-slate-500">Changes affect future payment entry only. Historical payments remain unchanged.</p>
     {state.message&&<p role="status" className="mt-4 text-sm">{state.message}</p>}
     <div className="mt-5 flex justify-end"><button disabled={pending} className="w-full rounded-lg bg-cyan-400 px-5 py-3 text-sm font-semibold disabled:opacity-50 sm:w-auto">{pending?"Saving…":"Save changes"}</button></div>
+  </form>;
+}
+
+export function CheckInstructionsForm({settings}:{settings:PaymentSettings}) {
+  const [state,action,pending] = useActionState(saveChecksPayableTo,{});
+  return <form action={action} className="mt-6 max-w-2xl rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
+    <h2 className="text-lg font-semibold">Invoice check instructions</h2>
+    <label className="mt-4 block text-sm font-medium">Checks payable to
+      <input name="checks_payable_to" defaultValue={settings.checks_payable_to ?? ""} maxLength={200} disabled={pending} aria-describedby="check-payee-help" className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100"/>
+    </label>
+    <p id="check-payee-help" className="mt-2 text-sm text-slate-600">Shown on newly generated invoice PDFs, including existing invoices. Leave blank to hide. Not shown on quotes.</p>
+    {state.message&&<p role="status" className="mt-4 text-sm">{state.message}</p>}
+    <div className="mt-5 flex justify-end"><button disabled={pending} className="w-full rounded-lg bg-cyan-400 px-5 py-3 text-sm font-semibold disabled:opacity-50 sm:w-auto">{pending?"Saving…":"Save check instructions"}</button></div>
   </form>;
 }

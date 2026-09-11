@@ -60,7 +60,7 @@ export function formatInvoiceQuantity(quantity: number, unit: string) {
 export function Columns() {
   return <View style={styles.columns}><Text style={styles.description}>DESCRIPTION</Text><Text style={styles.quantity}>QTY / UNIT</Text><Text style={styles.rate}>RATE</Text><Text style={styles.amount}>AMOUNT</Text></View>;
 }
-export function InvoiceDocument({ invoice: v, items, totals }: InvoicePdfData) {
+export function InvoiceDocument({ invoice: v, items, totals, checksPayableTo }: InvoicePdfData) {
   const address = [v.billing_address_line1_snapshot, v.billing_address_line2_snapshot,
     [v.billing_city_snapshot, v.billing_state_snapshot, v.billing_postal_code_snapshot].filter(Boolean).join(", "), v.billing_country_snapshot];
   return <Document title={`Nexa Invoice ${v.invoice_number}`} author={invoiceBusiness.name} subject="Invoice" language="en-US">
@@ -90,6 +90,9 @@ export function InvoiceDocument({ invoice: v, items, totals }: InvoicePdfData) {
         <View style={[styles.totalRow, styles.grandTotal]}><Text>Total</Text><Text>{formatMoney(totals.total)}</Text></View>
       </View>
       {[["NOTES", v.notes], ["TERMS", v.terms]].map(([label, value]) => value?.trim() && <View key={label} style={styles.prose}><Text style={styles.label} minPresenceAhead={25}>{label}</Text><Text style={styles.proseBody} orphans={2} widows={2}>{value}</Text></View>)}
+      {checksPayableTo?.trim() && <View style={styles.prose} wrap={false}>
+        <Text style={styles.proseBody}>Checks payable to: {checksPayableTo.trim()}</Text>
+      </View>}
       <View style={styles.footer} fixed><Text>{invoiceBusiness.name}</Text><Text render={({ pageNumber, totalPages }) => `Invoice #${v.invoice_number}  ·  ${pageNumber} / ${totalPages}`} /></View>
     </Page>
   </Document>;

@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tables } from "@/types/database";
 
 export type InvoicePdfData = {
+  checksPayableTo?: string | null;
   invoice: Tables<"invoices">;
   items: Tables<"invoice_items">[];
   totals: { subtotal: number; tax_amount: number; total: number };
@@ -38,7 +39,12 @@ export async function loadInvoicePdf(client: SupabaseClient<Database>, id: strin
     if (!totals || totals.subtotal === null || totals.tax_amount === null || totals.total === null) {
       throw new InvoicePdfError(500, "Unable to load invoice totals.");
     }
-    return { invoice: header.data, items, totals: { subtotal: totals.subtotal, tax_amount: totals.tax_amount, total: totals.total } };
+    // Current remittance instructions apply to old and new invoices alike.
+    // Use this request's authenticated client; never cache a payee in invoice data.
+    const settings = await client.from("payment_settings").select("checks_payable_to").eq("singleton",true).single();
+    check(settings.error);
+    if (!settings.data) throw new InvoicePdfError(500, "Unable to load invoice check instructions.");
+    return { checksPayableTo: settings.data.checks_payable_to?.trim() || null, invoice: header.data, items, totals: { subtotal: totals.subtotal, tax_amount: totals.tax_amount, total: totals.total } };
   }
   throw new InvoicePdfError(409, "Invoice changed while preparing the PDF. Please try again.");
 }

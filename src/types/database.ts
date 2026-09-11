@@ -569,6 +569,7 @@ export type Database = {
           card_enabled: boolean
           cash_enabled: boolean
           check_enabled: boolean
+          checks_payable_to: string | null
           created_at: string
           singleton: boolean
           updated_at: string
@@ -577,6 +578,7 @@ export type Database = {
           card_enabled?: boolean
           cash_enabled?: boolean
           check_enabled?: boolean
+          checks_payable_to?: string | null
           created_at?: string
           singleton?: boolean
           updated_at?: string
@@ -585,6 +587,7 @@ export type Database = {
           card_enabled?: boolean
           cash_enabled?: boolean
           check_enabled?: boolean
+          checks_payable_to?: string | null
           created_at?: string
           singleton?: boolean
           updated_at?: string
@@ -1148,6 +1151,24 @@ export type Database = {
         Args: { p_hourly_rate?: number; p_timer_id: string }
         Returns: Json
       }
+      update_checks_payable_to: {
+        Args: { p_checks_payable_to: string }
+        Returns: {
+          card_enabled: boolean
+          cash_enabled: boolean
+          check_enabled: boolean
+          checks_payable_to: string | null
+          created_at: string
+          singleton: boolean
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_settings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       update_composed_invoice: {
         Args: {
           p_as_of_date: string
@@ -1182,6 +1203,7 @@ export type Database = {
           card_enabled: boolean
           cash_enabled: boolean
           check_enabled: boolean
+          checks_payable_to: string | null
           created_at: string
           singleton: boolean
           updated_at: string

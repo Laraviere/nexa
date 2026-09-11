@@ -50,3 +50,15 @@ export async function voidPayment(_previous: PaymentState, form: FormData): Prom
     return { success: true, message: "Payment voided. Its history has been preserved." };
   } catch { return { message: "Unable to confirm the correction. Retry with the same reason." }; }
 }
+
+export async function saveChecksPayableTo(_previous: PaymentState, form: FormData): Promise<PaymentState> {
+  const client = await customerClient();
+  const payee = String(form.get("checks_payable_to") ?? "").trim();
+  if (payee.length > 200) return { message: "Checks payable to must be at most 200 characters." };
+  try {
+    const { data, error } = await client.rpc("update_checks_payable_to", { p_checks_payable_to: payee });
+    if (error || !data) return { message: "Unable to save check instructions. Please try again." };
+    revalidatePath("/settings/payments");
+    return { success: true, message: "Check instructions saved." };
+  } catch { return { message: "Unable to confirm the change. Refresh to check the saved instructions." }; }
+}
