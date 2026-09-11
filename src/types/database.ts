@@ -898,6 +898,33 @@ export type Database = {
           total: number
         }[]
       }
+      get_invoice_report: {
+        Args: {
+          p_as_of_date?: string
+          p_customer_id?: string
+          p_issue_date_from?: string
+          p_issue_date_to?: string
+          p_overdue_only?: boolean
+          p_page?: number
+          p_page_size?: number
+          p_payment_status?: string
+          p_search?: string
+          p_sort?: string
+          p_workflow_status?: string
+        }
+        Returns: {
+          amount_paid: number
+          invoice_count: number
+          outstanding_balance: number
+          page: number
+          page_size: number
+          resolved_as_of_date: string
+          rows: Json
+          total_invoiced: number
+          total_pages: number
+          total_rows: number
+        }[]
+      }
       get_retainer_period_usage: {
         Args: { p_billing_agreement_id: string; p_reference_date: string }
         Returns: {

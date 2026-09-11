@@ -46,7 +46,7 @@ test("generated invoices: authenticated actions, relevant periods, empty outcome
   const items=(await client.from("invoice_items").select("*").eq("invoice_id",invoice.id).order("position")).data;
   assert.deepEqual(items.map(i=>i.source_type),["retainer_fee","retainer_overage"]);assert.deepEqual(items.map(i=>i.period_start),["2025-09-15","2025-08-15"]);assert.equal(items[1].amount,60);
   let detail=await page(`/invoices/${invoice.id}`);assert.match(detail,/Monthly IT Support Retainer/);assert.match(detail,/IT Support Overage/);assert.match(detail,/\$560\.00/);assert.match(detail,/>Draft</);
-  assert.ok((await page("/invoices")).includes(`href="/invoices/${invoice.id}"`));assert.match(await page("/invoices"),/New Invoice/);assert.match(await page("/invoices"),/New Invoice/);
+  assert.ok((await page(`/invoices?q=${invoice.invoice_number}`)).includes(`href="/invoices/${invoice.id}"`));assert.match(await page("/invoices"),/New Invoice/);assert.match(await page("/invoices"),/New Invoice/);
   const empty=await generate(payload);assert.match(empty.text,/There is nothing eligible to invoice/);assert.equal((await client.from("invoices").select("id").eq("creation_request_id",empty.requestId)).data.length,0);
   assert.equal((await client.from("invoice_items").select("id").eq("billing_agreement_id",a.data.id).lt("period_start","2025-08-15")).data.length,0);
   assert.match(await page(`/invoices/${invoice.id}`),/Edit Invoice/);

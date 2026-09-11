@@ -40,7 +40,7 @@ test("invoice editor: existing composition, legacy state, atomic edits and histo
   assert.match((await transition("ready",initial)).text,/Invoice marked Ready/);
   const readyPage=await page(`/invoices/${invoiceId}`);assert.match(readyPage,/>Ready</);assert.match(readyPage,/Move to Draft/);assert.match(readyPage,/Edit Invoice/);
   assert.match(await page(route),/Save Changes/);
-  const list=await page("/invoices?status=ready");assert.match(list,/status=ready/);assert.ok(list.includes(`href="/invoices/${invoiceId}"`));assert.ok(!/Approved|Finalized/.test(list));
+  const list=await page(`/invoices?status=ready&q=${invoice.invoice_number}`);assert.match(list,/<option value="ready" selected="">Ready<\/option>/);assert.ok(list.includes(`href="/invoices/${invoiceId}"`));assert.ok(!/Approved|Finalized/.test(list));
   assert.match((await transition("draft",initial)).text,/This invoice changed/);
   const readyRevision=(await client.from("invoices").select("updated_at").eq("id",invoiceId).single()).data.updated_at;
   assert.match((await transition("sent",readyRevision)).text,/Confirm the invoice status change/);

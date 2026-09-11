@@ -3,17 +3,6 @@ import type { Tables } from "@/types/database";
 import { notFound } from "next/navigation";
 import { customerClient } from "@/lib/customers/server";
 import { isCustomerId } from "@/lib/customers/validation";
-export async function invoiceList(status: string, page: number) {
-  const client = await customerClient();
-  let query = client.from("invoices").select("id,invoice_number,company_name_snapshot,issue_date,due_date,status").order("invoice_number",{ ascending: false });
-  if (status !== "all") query = query.eq("status",status);
-  const { data,error } = await query.range((page-1)*25,page*25);
-  if (error) throw new Error("Unable to load invoices.");
-  const rows = data.slice(0,25);
-  const totals = rows.length ? await client.from("invoice_totals").select("invoice_id,total").in("invoice_id",rows.map(r=>r.id)) : { data: [],error: null };
-  if (totals.error || rows.some(r=> !totals.data?.some(t=>t.invoice_id===r.id && t.total !== null))) throw new Error("Unable to load invoice totals.");
-  return { rows: rows.map(r=>({...r,total: totals.data!.find(t=>t.invoice_id===r.id)!.total!})), hasNext: data.length>25 };
-}
 export async function invoiceDetail(id: string) {
   const client = await customerClient();
   if (!isCustomerId(id)) notFound();

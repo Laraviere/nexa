@@ -47,7 +47,7 @@ test("custom invoices through composer: authenticated actions, retries, snapshot
   const totals=(await client.from("invoice_totals").select("*").eq("invoice_id",invoice.id).single()).data;assert.equal(totals.total,190.50);
   await client.from("customers").update({company_name:"Changed current customer",billing_city:"Miami"}).eq("id",customer);
   let detail=await page(`/invoices/${invoice.id}`);assert.match(detail,/Casey Example/);assert.match(detail,/Boston/);assert.ok(!detail.includes("Changed current customer"));assert.match(detail,/\$190\.50/);assert.match(detail,/October 1, 2026/);assert.match(detail,/>Draft</);assert.match(detail,/Edit Invoice/);
-  assert.ok((await page("/invoices?status=draft")).includes(`href="/invoices/${invoice.id}"`));
+  assert.ok((await page(`/invoices?workflow=draft&q=${invoice.invoice_number}`)).includes(`href="/invoices/${invoice.id}"`));
   assert.ok(!detail.includes("Approve Invoice")&&!detail.includes("Finalize")&&!detail.includes(">Sent<"));
   const second=await create({...payload,items:[payload.items[0]]});const one=await client.from("invoices").select("id").eq("creation_request_id",second.requestId).single();assert.equal(one.error,null);invoiceIds.push(one.data.id);
   // Tax is supported in detail; no tax creation workflow is exposed.

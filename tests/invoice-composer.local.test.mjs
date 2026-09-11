@@ -56,7 +56,7 @@ test("composer UI: authenticated preview, selection, mixed save, staleness and a
   const items=(await client.from("invoice_items").select("*").eq("invoice_id",invoice.id).order("position")).data;
   assert.deepEqual(items.map(i=>i.source_type),["retainer_overage","manual"]);assert.deepEqual(items.map(i=>i.period_start),["2025-08-15",null]);assert.equal(items[0].amount,60);
   let detail=await page(`/invoices/${invoice.id}`);assert.match(detail,/Custom alongside overage/);assert.match(detail,/IT Support Overage/);assert.match(detail,/\$100\.00/);assert.match(detail,/>Draft</);
-  assert.ok((await page("/invoices")).includes(`href="/invoices/${invoice.id}"`));assert.match(await page("/invoices"),/New Invoice/);assert.match(await page("/invoices"),/New Invoice/);
+  assert.ok((await page(`/invoices?q=${invoice.invoice_number}`)).includes(`href="/invoices/${invoice.id}"`));assert.match(await page("/invoices"),/New Invoice/);assert.match(await page("/invoices"),/New Invoice/);
   const stale=await generate(payload);assert.match(stale.text,/Billing activity changed since this invoice was prepared/);
   const fresh=(await client.rpc("preview_customer_invoice",{p_customer_id:customer,p_as_of_date:"2025-09-20"})).data[0];assert.equal(fresh.candidates.length,1);assert.equal(fresh.candidates[0].candidate_id,fee.candidate_id);assert.notEqual(fresh.revision,initial.revision);
   const feeOnly=await generate({...payload,revision:fresh.revision,selected_candidate_ids:[fee.candidate_id],items:[]});
