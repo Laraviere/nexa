@@ -18,6 +18,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const pdf = await renderInvoicePdf(invoice);
     return new Response(new Uint8Array(pdf), { headers: { ...headers, "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="Nexa-Invoice-${invoice.invoice.invoice_number}.pdf"` } });
   } catch (error) {
+    if (!(error instanceof InvoicePdfError) || error.status >= 500) console.error("[invoice-pdf]", error instanceof Error ? error.stack : "Unknown PDF error");
     return Response.json({ message: error instanceof InvoicePdfError ? error.message : "Unable to generate this invoice PDF. Please try again." }, { status: error instanceof InvoicePdfError ? error.status : 500, headers });
   }
 }

@@ -18,5 +18,7 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
   if(!data)return Response.json({message:"Quote not found."},{status:404,headers});
   const pdf=await renderQuotePdf(data,businessDate());
   return new Response(new Uint8Array(pdf),{headers:{...headers,"Content-Type":"application/pdf","Content-Disposition":`inline; filename="Nexa-Quote-Q-${data.quote_number}.pdf"`}});
- }catch{return Response.json({message:"Unable to generate this quote PDF. Please try again."},{status:500,headers});}
+ }catch(error){
+  console.error("[quote-pdf]", error instanceof Error ? error.stack : "Unknown PDF error");
+  return Response.json({message:"Unable to generate this quote PDF. Please try again."},{status:500,headers});}
 }
