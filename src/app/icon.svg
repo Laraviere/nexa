@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Nexa App Icon</title>
+  <desc id="desc">Rounded navy square with a white and blue geometric N mark.</desc>
+  <defs>
+    <radialGradient id="bg" cx="20%" cy="10%" r="115%">
+      <stop offset="0%" stop-color="#0b4d86"/>
+      <stop offset="28%" stop-color="#082b50"/>
+      <stop offset="68%" stop-color="#061a31"/>
+      <stop offset="100%" stop-color="#030c18"/>
+    </radialGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#25e6ee"/>
+      <stop offset="42%" stop-color="#16a9ff"/>
+      <stop offset="100%" stop-color="#1258ff"/>
+    </linearGradient>
+    <linearGradient id="white" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#eef2f7"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="54" y="54" width="916" height="916" rx="185" fill="url(#bg)"/>
+
+  <!-- Left white stroke -->
+  <path d="M235 356 L365 505 L365 760 L235 760 Z" fill="url(#white)"/>
+
+  <!-- Right white stroke -->
+  <path d="M788 255 L788 680 L646 500 L646 342 Q646 310 672 294 Q722 269 788 255 Z" fill="url(#white)"/>
+
+  <!-- Blue diagonal ribbon -->
+  <path d="M214 254 H365 Q386 254 402 271 L805 760 H650 Q626 760 608 739 Z" fill="url(#blue)"/>
+</svg>
