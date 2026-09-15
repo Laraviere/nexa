@@ -1,0 +1,37 @@
+/* Form-specific layout; shared controls and approved detail/list styles are unchanged. */
+.nexa-form-page { container-type:inline-size; min-width:0; overflow-wrap:anywhere; }
+.nexa-form-section { margin-top:1.5rem; padding-top:1.25rem; border-top:1px solid var(--border-structural); }
+.nexa-form-section:first-child { margin-top:0; padding-top:0; border-top:0; }
+.nexa-form-section h2 { margin-bottom:1rem; font-size:1rem; font-weight:600; }
+.nexa-form-grid { display:grid; gap:1rem; }
+.nexa-form-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:.75rem; margin-top:1.25rem; padding-top:1.25rem; border-top:1px solid var(--border-structural); }
+.nexa-form-actions > p { margin-right:auto; }
+.nexa-edit-line { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:start; gap:.75rem; min-width:0; padding:1rem 0; border-bottom:1px solid var(--border-structural); }
+.nexa-edit-line > :first-child, .nexa-edit-line > button { grid-column:1 / -1; }
+.nexa-edit-line > * { min-width:0; }
+.nexa-edit-line label { font-size:.875rem; }
+.nexa-edit-line input[inputmode="decimal"] { text-align:right; font-variant-numeric:tabular-nums; }
+.nexa-edit-line > div { text-align:right; font-variant-numeric:tabular-nums; }
+.nexa-edit-line > div p:last-child { white-space:nowrap; }
+.nexa-form-summary { margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border-structural); text-align:right; font-variant-numeric:tabular-nums; }
+.nexa-form-summary dd { white-space:nowrap; margin-left:auto; }
+.nexa-form-summary dl > div { flex-wrap:wrap; }
+.nexa-selected-charges { padding:0 1rem; background:var(--workspace); border-left:2px solid var(--border-control); }
+.nexa-payment-review { display:grid; gap:1rem; margin-top:1rem; font-variant-numeric:tabular-nums; }
+.nexa-payment-review dt { font-size:.8125rem; color:var(--text-secondary); }
+.nexa-payment-review dd { margin-top:.25rem; white-space:nowrap; }
+.nexa-payment-review .nexa-payment-balance { border-top:1px solid var(--border-structural); padding-top:.75rem; font-size:1.25rem; }
+@container (min-width: 550px) {
+ .nexa-form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .nexa-payment-review { grid-template-columns:repeat(3,minmax(0,1fr)); }
+ .nexa-payment-review .nexa-payment-balance { border:0; padding:0; }
+}
+@container (min-width: 850px) {
+ .nexa-edit-line { grid-template-columns:minmax(0,2.5fr) minmax(0,.8fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto; }
+ .nexa-edit-line > :first-child, .nexa-edit-line > button { grid-column:auto; }
+ .nexa-edit-line > button { margin-top:1.6rem; }
+}
+@container (max-width: 400px) {
+ .nexa-form-actions > .nexa-button { flex:1 1 100%; }
+ .nexa-edit-line { grid-template-columns:minmax(0,1fr); }
+}

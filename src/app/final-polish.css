@@ -1,0 +1,6 @@
+/* Targeted dashboard edge cases; existing workspace layout stays intact. */
+.nexa-dashboard { container-type:inline-size; min-width:0; }
+.nexa-dashboard-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr)); gap:.75rem; }
+.nexa-dashboard-metrics > a { border-radius:.625rem; }
+/* Widen an exceptional financial value's row instead of breaking its digits. */
+.nexa-dashboard-metrics p { max-width:100%; }

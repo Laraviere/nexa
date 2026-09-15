@@ -1,3 +1,4 @@
+import { LoadingState } from "@/components/ui/feedback";
 export default function TimeLoading() {
-  return <p role="status" className="py-8 text-slate-500">Loading time information…</p>;
+  return <LoadingState>Loading time information…</LoadingState>;
 }

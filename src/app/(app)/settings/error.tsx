@@ -1,2 +1,4 @@
 "use client";
-export default function SettingsError({reset}:{reset:()=>void}){return <div role="alert" className="rounded-xl border border-slate-200 bg-white p-6"><h2 className="text-lg font-semibold">Unable to load settings</h2><button onClick={reset} className="mt-3 text-sm font-semibold text-cyan-700">Try again</button></div>;}
+import { Button } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
+export default function SettingsError({reset}:{reset:()=>void}){return <Surface role="alert"><h2 className="text-lg font-semibold">Unable to load settings</h2><Button onClick={reset} className="mt-4">Try again</Button></Surface>;}

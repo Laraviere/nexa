@@ -1,3 +1,7 @@
+import { PageHeader } from "@/components/ui/detail";
+import { Surface, SectionHeading } from "@/components/ui/surface";
+import { InlineNotice } from "@/components/ui/feedback";
+import { ButtonLink } from "@/components/ui/button";
 import Link from "next/link";
 import { CustomerBilling } from "@/components/billing/customer-billing";
 import { businessDate, currentAgreement } from "@/lib/billing/model";
@@ -21,10 +25,16 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     ["Default payment terms", paymentTermsLabel(customer.default_payment_terms_days)], ["Billing address", address], ["Notes", customer.notes],
     ["Created (New York time)", dateFormat.format(new Date(customer.created_at))], ["Updated (New York time)", dateFormat.format(new Date(customer.updated_at))],
   ];
-  return <>
+  return <div className="nexa-detail-page">
     <Link href="/customers" className="text-sm font-medium text-cyan-700">← Customers</Link>
-    <div className="mt-4 mb-8 flex flex-wrap items-start justify-between gap-4"><div className="min-w-0"><h1 className="mb-3 break-words text-3xl font-semibold tracking-tight">{customer.company_name}</h1><CustomerStatus active={customer.is_active} /></div><Link href={`/customers/${customer.id}/edit`} className="rounded-lg bg-cyan-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800">Edit customer</Link></div>
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"><h2 className="mb-6 text-lg font-semibold">Customer details</h2><dl className="grid gap-6 sm:grid-cols-2">{details.map(([label, value]) => <div key={label} className={label === "Notes" ? "sm:col-span-2" : ""}><dt className="text-sm text-slate-500">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-950">{value || "Not provided"}</dd></div>)}</dl><CustomerStatusAction key={String(customer.is_active)} id={customer.id} active={customer.is_active} /></section>
-    <CustomerBilling customerId={customer.id} agreements={agreements} today={today} usage={usage} />
-  </>;
+    <PageHeader title={customer.company_name} context={customer.primary_contact_name} status={<CustomerStatus active={customer.is_active}/>} actions={<ButtonLink variant="primary" href={`/customers/${customer.id}/edit`}>Edit customer</ButtonLink>}/>
+    {!customer.is_active&&<InlineNotice tone="info" className="mb-5">This customer is archived. Contact information and billing history remain available.</InlineNotice>}
+    <Surface aria-labelledby="contact-heading"><SectionHeading id="contact-heading">Contact information</SectionHeading><dl className="nexa-detail-facts mt-4">{[...details.slice(0,3),details[4]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value||"Not provided"}</dd></div>)}</dl>
+
+    </Surface>
+    <CustomerBilling paymentTerms={paymentTermsLabel(customer.default_payment_terms_days)} customerId={customer.id} agreements={agreements} today={today} usage={usage}/>
+    <section className="mt-6"><SectionHeading>Notes</SectionHeading><p className="mt-2 whitespace-pre-wrap text-sm text-secondary">{customer.notes||"Not provided"}</p></section>
+    <section className="nexa-detail-metadata" aria-label="Customer record history"><dl className="nexa-detail-facts">{details.slice(6).map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>
+    <CustomerStatusAction key={String(customer.is_active)} id={customer.id} active={customer.is_active}/>
+  </div>;
 }

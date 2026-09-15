@@ -48,7 +48,7 @@ test("composer has billing context, dated suggestions and responsive custom rows
  const h=harness({react:{...react,useState:initial=>[first?(first=false,draftValue):initial,()=>{}],useRef:initial=>({current:initial}),useEffect:()=>{},useActionState:()=>[{},()=>{},false]},"next/navigation":{useRouter:()=>({})}});
  const Component=h.load("@/components/invoices/create-invoice-form").CreateInvoiceForm;
  const tree=Component({customers:[{id,company_name:"Example",is_active:true,default_payment_terms_days:30,agreement:null}],today:"2026-09-01",initialRequestId:id,owner:"test"});
- const html=require("react-dom/server").renderToStaticMarkup(tree);assert.match(html,/Bill to/);assert.match(html,/No retainer/);assert.match(html,/October 1, 2026/);assert.match(html,/Suggested charges/);assert.match(html,/As-of date/);assert.match(html,/Add custom item/);assert.match(html,/Save Draft/);assert.match(html,/\$180\.00/);assert.match(html,/lg:grid-cols/);assert.match(html,/min-w-0/);
+ const html=require("react-dom/server").renderToStaticMarkup(tree);assert.match(html,/Bill to/);assert.match(html,/No retainer/);assert.match(html,/October 1, 2026/);assert.match(html,/Suggested charges/);assert.match(html,/As-of date/);assert.match(html,/Add custom item/);assert.match(html,/Save Draft/);assert.match(html,/\$180\.00/);assert.match(html,/nexa-edit-line/);assert.match(html,/min-w-0/);
 });
 
 test("invoice workflow controls and confirmations match the status without delivery actions",()=>{

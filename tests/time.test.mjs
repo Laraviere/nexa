@@ -26,7 +26,7 @@ function harness() {
     }; return query;
   } };
   const overrides = { "server-only": {}, "@/lib/supabase/server": { createClient: async () => client },
-    "next/navigation": { redirect(url) { throw Object.assign(new Error("redirect"), { url }); } },
+    "next/navigation": { usePathname: () => "/time", redirect(url) { throw Object.assign(new Error("redirect"), { url }); } },
     "next/cache": { revalidatePath(value) { invalidated.push(value); } },
     "next/link": { __esModule: true, default: ({ children, ...props }) => require("react").createElement("a", props, children) },
     "@/components/auth/sign-out-button": { SignOutButton: () => null },

@@ -1,5 +1,11 @@
 "use client";
 
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/form";
+import { InlineNotice } from "@/components/ui/feedback";
+import { surfaceStyles } from "@/components/ui/surface";
+
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -40,36 +46,34 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8">
+    <div className="nexa-workspace flex min-h-dvh items-center justify-center bg-brand-navy px-4 py-8 sm:px-8">
       <div className="w-full max-w-md">
         <div className="mb-8 flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-xl bg-cyan-400 text-lg font-semibold text-slate-950">
-            N
-          </span>
+          <Image src="/icon.svg" width={44} height={44} alt="" unoptimized/>
           <span className="text-xl font-semibold tracking-tight">Nexa</span>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-6 shadow-2xl shadow-black/20 sm:p-8">
-          <div className="mb-8">
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-cyan-300">
+        <div className={surfaceStyles("standard", "text-ink")}>
+          <div className="mb-6">
+            <p className="text-sm font-medium text-primary">
               Internal operations
             </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight">
               Sign in to Nexa
             </h1>
-            <p className="mt-3 leading-6 text-slate-400">
+            <p className="mt-3 text-sm leading-6 text-secondary">
               Use your Nexa account to continue to the workspace.
             </p>
           </div>
 
           <form className="space-y-5" onSubmit={handleSubmit} noValidate>
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-200" htmlFor="email">
+              <label className="mb-2 block text-sm font-medium text-ink" htmlFor="email">
                 Email
               </label>
-              <input
+              <Input
                 autoComplete="email"
-                className="h-12 w-full rounded-xl border border-white/15 bg-slate-950/60 px-4 text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                className="w-full"
                 id="email"
                 inputMode="email"
                 name="email"
@@ -81,12 +85,12 @@ export function LoginForm() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-200" htmlFor="password">
+              <label className="mb-2 block text-sm font-medium text-ink" htmlFor="password">
                 Password
               </label>
-              <input
+              <Input
                 autoComplete="current-password"
-                className="h-12 w-full rounded-xl border border-white/15 bg-slate-950/60 px-4 text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                className="w-full"
                 id="password"
                 name="password"
                 onChange={(event) => setPassword(event.target.value)}
@@ -96,22 +100,22 @@ export function LoginForm() {
             </div>
 
             {errorMessage ? (
-              <p className="rounded-xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm leading-5 text-rose-200" role="alert">
+              <InlineNotice tone="error" role="alert">
                 {errorMessage}
-              </p>
+              </InlineNotice>
             ) : null}
 
-            <button
-              className="h-12 w-full rounded-xl bg-cyan-400 px-4 font-semibold text-slate-950 transition hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+            <Button
+              className="w-full"
               disabled={isPending}
               type="submit"
             >
               {isPending ? "Signing in…" : "Sign In"}
-            </button>
+            </Button>
           </form>
         </div>
 
-        <p className="mt-6 text-center text-xs text-slate-500">
+        <p className="mt-6 text-center text-xs text-slate-300">
           Authorized Nexa access only
         </p>
       </div>

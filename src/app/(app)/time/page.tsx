@@ -1,3 +1,6 @@
+import { EmptyState } from "@/components/ui/feedback";
+import { ButtonLink } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
 import { TimerPanel } from "@/components/timer/timer-panel";
 import { getTimer } from "@/lib/timer/server";
 import { businessDate } from "@/lib/billing/model";
@@ -19,7 +22,7 @@ export default async function TimePage({ searchParams }: { searchParams: Promise
       <p className="mt-4 whitespace-pre-wrap break-words text-sm text-slate-700">{entry.description}</p>
       <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 text-sm"><div><dt className="text-slate-500">Actual duration</dt><dd className="mt-1 font-semibold">{formatDuration(entry.actual_minutes)}</dd></div><div><dt className="text-slate-500">Billable duration (rounded)</dt><dd className="mt-1 font-semibold">{formatDuration(entry.rounded_minutes)}</dd></div></dl>
       {entry.voided_at && <p className="mt-3 text-sm text-amber-800">Excluded from billing usage. Reason: {entry.void_reason}</p>}
-    </li>)}</ul> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center"><h2 className="text-lg font-semibold">No time entries {page === 1 ? "yet" : "on this page"}</h2><p className="mt-2 text-sm text-slate-600">Record the actual time spent working for a customer.</p><Link href={page === 1 ? "/time/new" : "/time"} className="mt-5 inline-block text-sm font-semibold text-cyan-700">{page === 1 ? "Add time entry" : "View recent entries"}</Link></div>}
+    </li>)}</ul> : <Surface><EmptyState title={<>No time entries {page === 1 ? "yet" : "on this page"}</>} description="Record the actual time spent working for a customer." action={<ButtonLink href={page === 1 ? "/time/new" : "/time"}>{page === 1 ? "Add time entry" : "View recent entries"}</ButtonLink>}/></Surface>}
     {(page > 1 || hasNext) && <nav aria-label="Time entry pages" className="mt-6 flex justify-between text-sm">{page > 1 ? <Link href={`/time?page=${page - 1}`} className="text-cyan-700">← Previous</Link> : <span />}<span>Page {page}</span>{hasNext ? <Link href={`/time?page=${page + 1}`} className="text-cyan-700">Next →</Link> : <span />}</nav>}
   </>;
 }

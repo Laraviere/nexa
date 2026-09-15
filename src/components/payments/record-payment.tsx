@@ -1,9 +1,13 @@
 "use client";
+import { surfaceStyles } from "@/components/ui/surface";
+import { InlineNotice } from "@/components/ui/feedback";
+import { Button } from "@/components/ui/button";
+import { FormField, Input, Textarea } from "@/components/ui/form";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { recordPayment } from "@/actions/payments";
 import { enabledMethods, paymentMethods, type PaymentSettings, type PaymentState } from "@/lib/payments/model";
-const input = "mt-1.5 block w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm disabled:bg-slate-50";
+const input = "mt-1.5 block w-full min-w-0";
 export function RecordPayment({invoiceId,owner,balance,today,settings,canRecord}:{invoiceId:string;owner:string;balance:number;today:string;settings:PaymentSettings;canRecord:boolean}) {
   const router=useRouter();const [open,setOpen]=useState(false);const [ready,setReady]=useState(false);const [pending,setPending]=useState(false);const [state,setState]=useState<PaymentState>({});const [key,setKey]=useState("");
   const [saved,setSaved]=useState<Record<string,string>|null>(null);
@@ -34,19 +38,19 @@ export function RecordPayment({invoiceId,owner,balance,today,settings,canRecord}
   // An uncertain submission may still confirm an existing payment after status changes.
   const showForm=open&&(canRecord||state.uncertain);
   return <div className="mt-4 min-w-0">
-    {!showForm&&canRecord&&<button disabled={!ready} onClick={()=>{setSaved(null);setKey(crypto.randomUUID());setState({});setOpen(true);}} className="block w-full rounded-lg bg-cyan-400 px-4 py-2.5 text-sm font-semibold disabled:opacity-50 sm:ml-auto sm:w-auto">Record Payment</button>}
-    {!showForm&&state.message&&<p role="status" className="mt-3 text-sm">{state.message}</p>}
-    {showForm&&<form onSubmit={submit} aria-label="Record invoice payment" className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-left">
+    {!showForm&&canRecord&&<Button variant="primary" disabled={!ready} onClick={()=>{setSaved(null);setKey(crypto.randomUUID());setState({});setOpen(true);}} className="block w-full sm:ml-auto sm:w-auto">Record Payment</Button>}
+    {!showForm&&state.message&&<InlineNotice tone={state.uncertain ? "warning" : state.success ? "success" : "error"} role="status" className="mt-3">{state.message}</InlineNotice>}
+    {showForm&&<form onSubmit={submit} aria-label="Record invoice payment" className={surfaceStyles("compact", "text-left")}>
       <h3 className="font-semibold">Record payment</h3><p className="mt-1 text-xs text-slate-500">Record the full balance or a partial payment.</p>
       <fieldset disabled={pending||state.uncertain} className="mt-4 min-w-0 space-y-4">
         <legend className="sr-only">Payment details</legend><input type="hidden" name="invoice_id" value={invoiceId}/><input type="hidden" name="request_id" value={key}/>
-        <div className="grid min-w-0 gap-4 sm:grid-cols-2"><label className="min-w-0 text-sm font-medium">Amount<input className={input} name="amount" autoFocus required inputMode="decimal" type="text" pattern="[0-9]+([.][0-9]{1,2})?" defaultValue={saved?.amount??balance.toFixed(2)}/></label><label className="min-w-0 text-sm font-medium">Payment date<input className={input} name="payment_date" type="date" max={today} required defaultValue={saved?.payment_date??today}/></label></div>
-        <fieldset><legend className="mb-2 text-sm font-medium">Payment method</legend><div className="flex flex-wrap gap-2">{options.map(method=><label key={method} className="min-w-20 flex-1 cursor-pointer"><input className="peer sr-only" name="payment_method" type="radio" value={method} required defaultChecked={(saved?.payment_method??options[0])===method}/><span className="block rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-center text-sm font-medium peer-checked:border-cyan-700 peer-checked:bg-cyan-50 peer-checked:text-cyan-900 peer-focus-visible:ring-2 peer-focus-visible:ring-cyan-700">{paymentMethods[method]}</span></label>)}</div></fieldset>
-        <label className="block text-sm font-medium">Reference <span className="font-normal text-slate-500">(optional)</span><input className={input} name="reference" maxLength={500} defaultValue={saved?.reference??""} placeholder="Check, transaction or receipt number"/></label>
-        <label className="block text-sm font-medium">Notes <span className="font-normal text-slate-500">(optional)</span><textarea className={input} name="notes" rows={2} maxLength={10000} defaultValue={saved?.notes??""}/></label>
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2"><FormField id="record-payment-amount" label="Amount"><Input className={input} name="amount" autoFocus required inputMode="decimal" type="text" pattern="[0-9]+([.][0-9]{1,2})?" defaultValue={saved?.amount??balance.toFixed(2)}/></FormField><FormField id="record-payment-date" label="Payment date"><Input className={input} name="payment_date" type="date" max={today} required defaultValue={saved?.payment_date??today}/></FormField></div>
+        <fieldset><legend className="mb-2 text-sm font-medium">Payment method</legend><div className="flex flex-wrap gap-2">{options.map(method=><label key={method} className="min-w-20 flex-1 cursor-pointer"><input className="peer sr-only" name="payment_method" type="radio" value={method} required defaultChecked={(saved?.payment_method??options[0])===method}/><span className="flex min-h-11 items-center justify-center rounded-md border border-control-border bg-surface px-3 py-2 text-center text-sm font-medium peer-checked:border-primary peer-checked:bg-cyan-50 peer-checked:text-cyan-900 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary peer-disabled:opacity-60">{paymentMethods[method]}</span></label>)}</div></fieldset>
+        <label className="block text-sm font-medium">Reference <span className="font-normal text-slate-500">(optional)</span><Input className={input} name="reference" maxLength={500} defaultValue={saved?.reference??""} placeholder="Check, transaction or receipt number"/></label>
+        <label className="block text-sm font-medium">Notes <span className="font-normal text-slate-500">(optional)</span><Textarea className={input} name="notes" rows={2} maxLength={10000} defaultValue={saved?.notes??""}/></label>
       </fieldset>
-      {state.message&&<p role="status" className="mt-3 text-sm">{state.message}</p>}
-      <div className="mt-4 flex flex-wrap justify-end gap-3"><button type="button" disabled={pending||state.uncertain} onClick={()=>{setOpen(false);setState({});}} className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm disabled:opacity-50">Cancel</button><button disabled={pending} className="rounded-lg bg-cyan-400 px-4 py-2.5 text-sm font-semibold disabled:opacity-50">{pending?"Recording…":state.uncertain?"Retry same payment":"Record Payment"}</button></div>
+      {state.message&&<InlineNotice tone={state.uncertain ? "warning" : state.success ? "success" : "error"} role="status" className="mt-3">{state.message}</InlineNotice>}
+      <div className="mt-4 flex flex-wrap justify-end gap-3"><Button variant="secondary" type="button" disabled={pending||state.uncertain} onClick={()=>{setOpen(false);setState({});}}>Cancel</Button><Button variant="primary" disabled={pending}>{pending?"Recording…":state.uncertain?"Retry same payment":"Record Payment"}</Button></div>
     </form>}
   </div>;
 }

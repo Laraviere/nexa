@@ -28,7 +28,7 @@ test('dashboard empty states, bounded-read warnings and quick actions render wit
  const html=renderToStaticMarkup(view({data:empty}));
  for(const text of ['No outstanding invoices.','No recent payments.','No retainers need attention.','No recent time entries.','New Invoice','Add Time Entry','Start Timer','New Customer'])assert.ok(html.includes(text),text);
  for(const href of ['/invoices/new','/time/new','/time','/customers/new','/invoices?status=ready'])assert.ok(html.includes(`href="${href}"`));
- assert.ok(!html.includes('Current timer'));assert.match(html,/lg:grid-cols-4/);assert.match(html,/lg:grid-cols-2/);assert.match(html,/flex-wrap/);assert.match(html,/min-w-0/);
+ assert.ok(!html.includes('Current timer'));assert.match(html,/nexa-dashboard-metrics/);assert.match(html,/lg:grid-cols-2/);assert.match(html,/flex-wrap/);assert.match(html,/min-w-0/);
  const capped=renderToStaticMarkup(view({data:{...empty,outstanding:null,attentionComplete:false,retainersComplete:false}}));
  assert.match(capped,/Unavailable/);assert.match(capped,/scan limit reached/);assert.match(capped,/first 25/);assert.ok(!capped.includes('No retainers need attention'));
 });

@@ -1,3 +1,6 @@
+import { EmptyState } from "@/components/ui/feedback";
+import { surfaceStyles } from "@/components/ui/surface";
+import { buttonStyles } from "@/components/ui/button";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { DashboardData } from "@/lib/dashboard/server";
@@ -9,41 +12,41 @@ import { DashboardTimer } from "./timer";
 const focus="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-700";
 const link=`text-sm font-medium text-cyan-800 hover:underline underline-offset-4 ${focus}`;
 const row=`block rounded-lg py-3.5 hover:bg-slate-50 ${focus}`;
-const amount="min-w-0 max-w-40 break-words text-right text-sm font-semibold tabular-nums text-slate-950";
-const columns="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4";
+const amount="min-w-0 whitespace-nowrap text-right text-sm font-semibold tabular-nums text-slate-950";
+const columns="flex flex-wrap items-start justify-between gap-x-4 gap-y-2";
 const shortDate=(value:string)=>new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"}).format(new Date(`${value}T12:00:00Z`));
 
 function Section({title,href,action,children}:{title:string;href:string;action:string;children:ReactNode}) {
-  return <section className="min-w-0 rounded-xl border border-slate-200 bg-white">
+  return <section className={surfaceStyles("none", "min-w-0")}>
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-slate-100 px-4 py-3.5 sm:px-5">
       <h2 className="text-sm font-semibold text-slate-950">{title}</h2>
-      <Link href={href} className={`shrink-0 text-xs font-medium text-slate-500 hover:text-cyan-800 hover:underline underline-offset-4 ${focus}`}>{action}</Link>
+      <Link href={href} className={`inline-flex min-h-11 items-center shrink-0 text-sm font-medium text-secondary hover:text-cyan-800 hover:underline underline-offset-4 ${focus}`}>{action}</Link>
     </div>
     <div className="px-4 sm:px-5">{children}</div>
   </section>;
 }
-function Empty({children}:{children:ReactNode}) {return <p className="py-5 text-sm text-slate-500">{children}</p>;}
+function Empty({children}:{children:ReactNode}) {return <EmptyState title={children}/>;}
 
 export function DashboardOverview({data:d}:{data:DashboardData}) {
   const month=new Intl.DateTimeFormat("en-US",{month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(`${d.dates.monthStart}T12:00:00Z`));
   const metrics=[{label:"Outstanding balance",value:d.outstanding===null?null:formatMoney(d.outstanding),note:"Open non-void invoices",href:"/invoices"},
     {label:"Ready invoices",value:String(d.readyCount),note:"Ready for payment activity",href:"/invoices?status=ready"},
-    {label:"Payments this month",value:d.paymentsThisMonth===null?null:formatMoney(d.paymentsThisMonth),note:`${month} · Payments`,href:"/invoices"},
+    {label:"Payments this month",value:d.paymentsThisMonth===null?null:formatMoney(d.paymentsThisMonth),note:`${month} · Payments`,href:"/payments"},
     {label:"Billable time this month",value:d.billableMinutes===null?null:formatDuration(d.billableMinutes),note:`${month} · Rounded time`,href:"/time"}];
-  return <div className="mx-auto max-w-6xl space-y-5 [overflow-wrap:anywhere] px-5 py-8 sm:space-y-6 sm:px-8 sm:py-10">
+  return <div className="nexa-dashboard space-y-5 [overflow-wrap:anywhere] sm:space-y-6">
     <header>
       <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Dashboard</h1>
       <p className="mt-2 text-sm text-slate-600">Overview of billing, payments, retainers, and time.</p>
       <p className="mt-1.5 text-xs text-slate-500">As of {formatBusinessDate(d.dates.today)} · New York</p>
     </header>
     <nav aria-label="Quick actions" className="flex flex-wrap gap-2">
-      {[["New Invoice","/invoices/new"],["Add Time Entry","/time/new"],[d.timer?"View Timer":"Start Timer","/time"],["New Customer","/customers/new"]].map(([label,href],i)=><Link key={label} href={href} className={`inline-flex min-h-10 items-center rounded-lg border px-3 py-2 text-sm font-medium ${focus} ${i===0?"border-cyan-200 bg-cyan-50 text-cyan-900 hover:bg-cyan-100":"border-slate-200 text-slate-600 hover:bg-white hover:text-slate-950"}`}>{label}</Link>)}
+      {[["New Invoice","/invoices/new"],["Add Time Entry","/time/new"],[d.timer?"View Timer":"Start Timer","/time"],["New Customer","/customers/new"]].map(([label,href],i)=><Link key={label} href={href} className={buttonStyles({variant:i===0?"primary":"secondary"})}>{label}</Link>)}
     </nav>
     {d.timer&&<DashboardTimer key={d.timer.id+String(d.observedAt)} timer={d.timer} observedAt={d.observedAt}/>}
-    <section aria-label="Business overview" className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 lg:grid-cols-4">
+    <section aria-label="Business overview" className="nexa-dashboard-metrics">
       {metrics.map((m,index)=><Link href={m.href} key={m.label} className={`grid min-w-0 grid-rows-[2.5rem_auto_1fr] rounded-xl border p-4 ${focus} ${index===0?"border-cyan-300 bg-cyan-50/40 hover:border-cyan-500":"border-slate-200 bg-white hover:border-slate-300"}`}>
         <h2 className={`text-sm font-medium leading-5 ${index===0?"text-cyan-900":"text-slate-600"}`}>{m.label}</h2>
-        <p className={`mt-1 break-words text-2xl leading-8 tracking-tight tabular-nums text-slate-950 ${index===0?"font-bold":"font-semibold"}`}>{m.value??"Unavailable"}</p>
+        <p className={`mt-1 whitespace-nowrap text-xl leading-8 tracking-tight tabular-nums text-slate-950 ${index===0?"font-bold":"font-semibold"}`}>{m.value??"Unavailable"}</p>
         <p className="mt-3 min-h-8 self-end text-xs leading-4 text-slate-500">{m.value===null?"Too many records for a complete dashboard total. Open the full list.":m.note}</p>
       </Link>)}
     </section>
@@ -64,7 +67,7 @@ export function DashboardOverview({data:d}:{data:DashboardData}) {
           </Link></li>;
         })}</ul>}
       </Section>
-      <Section title="Recent payments" href="/invoices" action="View invoices">
+      <Section title="Recent payments" href="/payments" action="View payments">
         {!d.payments.length?<Empty>No recent payments.</Empty>:<ul className="divide-y divide-slate-100">{d.payments.map(p=><li key={p.id}><Link href={`/invoices/${p.invoice_id}`} className={row}>
           <div className={columns}><p className="min-w-0 break-words text-sm font-medium text-slate-950">{p.invoices?.company_name_snapshot??"Customer"}</p><p className={amount}>{formatMoney(p.amount)}</p></div>
           <p className="mt-1.5 text-xs leading-5 text-slate-500">Invoice #{p.invoices?.invoice_number} · {shortDate(p.payment_date)} · {paymentMethods[p.payment_method as keyof typeof paymentMethods]}</p>

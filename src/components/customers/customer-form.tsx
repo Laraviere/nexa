@@ -1,11 +1,14 @@
 "use client";
+import { InlineNotice } from "@/components/ui/feedback";
+import { SectionHeading, surfaceStyles } from "@/components/ui/surface";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { FormField, Input, Select, Textarea } from "@/components/ui/form";
 
-import Link from "next/link";
 import { useActionState, useState } from "react";
 import { saveCustomer } from "@/actions/customers";
 import { commonPaymentTerms, paymentTermsLabel, type Customer, type CustomerField, type CustomerFormState } from "@/lib/customers/validation";
 
-const inputClass = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-950 outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-600/20";
+const inputClass = "w-full";
 const fields: { name: CustomerField; label: string; type?: string; autoComplete?: string }[] = [
   { name: "company_name", label: "Company / customer name", autoComplete: "organization" },
   { name: "primary_contact_name", label: "Primary contact", autoComplete: "name" },
@@ -28,31 +31,30 @@ export function CustomerForm({ customer }: { customer?: Customer }) {
     return state.errors?.[name] ? <p id={`${name}-error`} className="mt-1 text-sm text-rose-700">{state.errors[name]}</p> : null;
   }
   return (
-    <form action={action} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8" noValidate>
+    <form action={action} className={surfaceStyles("standard", "nexa-form-page")} noValidate>
       <p className="mb-6 text-sm text-slate-500">Company / customer name is required. All other contact and address fields are optional.</p>
       <fieldset disabled={pending} className="space-y-8 disabled:opacity-70">
-        <div className="grid gap-5 sm:grid-cols-2">
-          {fields.map((field, index) => (
-            <div key={field.name} className={index === 4 ? "sm:col-span-2" : ""}>
-              {index === 4 && <h2 className="mb-5 border-t border-slate-100 pt-6 text-lg font-semibold">Billing address</h2>}
-              <label htmlFor={field.name} className="mb-2 block text-sm font-medium">{field.label}{field.name === "company_name" ? " *" : ""}</label>
-              <input className={inputClass} id={field.name} name={field.name} type={field.type ?? "text"} autoComplete={field.autoComplete} required={field.name === "company_name"} defaultValue={state.values?.[field.name] ?? customer?.[field.name] ?? ""} aria-invalid={!!state.errors?.[field.name]} aria-describedby={state.errors?.[field.name] ? `${field.name}-error` : undefined} />
-              {error(field.name)}
+        {[{title:"Customer",group:fields.slice(0,1)},{title:"Primary contact",group:fields.slice(1,4)},{title:"Billing address",group:fields.slice(4)}].map(({title,group})=><section key={title} className="nexa-form-section"><SectionHeading>{title}</SectionHeading><div className="nexa-form-grid">
+          {group.map((field) => (
+            <div key={field.name}>
+              <FormField id={field.name} label={field.label} required={field.name === "company_name"} error={state.errors?.[field.name]}>
+              <Input className={inputClass} id={field.name} name={field.name} type={field.type ?? "text"} autoComplete={field.autoComplete} required={field.name === "company_name"} defaultValue={state.values?.[field.name] ?? customer?.[field.name] ?? ""} />
+              </FormField>
             </div>
           ))}
-        </div>
-        <div className="border-t border-slate-100 pt-6">
+        </div></section>)}
+        <div className="nexa-form-section"><SectionHeading>Billing</SectionHeading>
           <label htmlFor="payment_terms" className="mb-2 block text-sm font-medium">Default payment terms</label>
-          <select id="payment_terms" className={inputClass} name={terms === "custom" ? undefined : "default_payment_terms_days"} value={terms} onChange={(event) => setTerms(event.target.value)} aria-describedby={state.errors?.default_payment_terms_days ? "default_payment_terms_days-error" : undefined}>
+          <Select id="payment_terms" className={inputClass} name={terms === "custom" ? undefined : "default_payment_terms_days"} value={terms} onChange={(event) => setTerms(event.target.value)} aria-describedby={state.errors?.default_payment_terms_days ? "default_payment_terms_days-error" : undefined}>
             {commonPaymentTerms.map((days) => <option key={days} value={days}>{paymentTermsLabel(days)}</option>)}
             <option value="custom">Custom number of days</option>
-          </select>
+          </Select>
           {terms === "custom" && (
             <div className="mt-4">
               <label htmlFor="default_payment_terms_days" className="mb-2 block text-sm font-medium">
                 Payment due in (days)
               </label>
-              <input
+              <Input
                 className={inputClass}
                 id="default_payment_terms_days"
                 name="default_payment_terms_days"
@@ -68,12 +70,12 @@ export function CustomerForm({ customer }: { customer?: Customer }) {
           )}
           {error("default_payment_terms_days")}
         </div>
-        <div><label htmlFor="notes" className="mb-2 block text-sm font-medium">Notes</label><textarea className={inputClass} id="notes" name="notes" rows={5} defaultValue={state.values?.notes ?? customer?.notes ?? ""} /></div>
+        <div className="nexa-form-section"><SectionHeading>Other information</SectionHeading><label htmlFor="notes" className="mb-2 block text-sm font-medium">Notes</label><Textarea className={inputClass} id="notes" name="notes" rows={5} defaultValue={state.values?.notes ?? customer?.notes ?? ""} /></div>
       </fieldset>
-      {state.message && <p role="alert" className="mt-5 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{state.message}</p>}
-      <div className="mt-8 flex flex-wrap items-center gap-4 border-t border-slate-100 pt-6">
-        <button disabled={pending} className="rounded-lg bg-cyan-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-60">{pending ? "Saving…" : customer ? "Save changes" : "Create customer"}</button>
-        <Link href={cancelHref} className="text-sm font-medium text-slate-600 hover:text-slate-950">Cancel</Link>
+      {state.message && <InlineNotice tone="error" role="alert" className="mt-5">{state.message}</InlineNotice>}
+      <div className="nexa-form-actions">
+        <ButtonLink variant="secondary" href={cancelHref}>Cancel</ButtonLink>
+        <Button variant="primary" disabled={pending}>{pending ? "Saving…" : customer ? "Save changes" : "Create customer"}</Button>
       </div>
     </form>
   );

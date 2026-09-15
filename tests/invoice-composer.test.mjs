@@ -59,17 +59,17 @@ test('composer suggestions replace by context, default selected, stale refresh a
   function all(node){if(!node||typeof node!=='object')return [];return [node,...[node.props?.children].flat(Infinity).flatMap(all)];}
   function text(node){if(node==null||typeof node==='boolean')return '';if(typeof node!=='object')return String(node);return [node.props?.children].flat(Infinity).map(text).join(' ');}
   let tree=render();tree=render();
-  all(tree).find(n=>n.type==='select').props.onChange({target:{value:id}});tree=render();tree=render();assert.match(text(tree),/Loading charges/);
+  all(tree).find(n=>(n.type==='select'||n.type?.name==='Select')).props.onChange({target:{value:id}});tree=render();tree=render();assert.match(text(tree),/Loading charges/);
   // A context change invalidates the old response, even when it finishes last.
-  all(tree).find(n=>n.type==='select').props.onChange({target:{value:props.customers[1].id}});tree=render();
+  all(tree).find(n=>(n.type==='select'||n.type?.name==='Select')).props.onChange({target:{value:props.customers[1].id}});tree=render();
   pendingPreviews[1]({preview:{as_of_date:props.today,revision,candidates:[charge()]}});await Promise.resolve();tree=render();
   assert.equal(all(tree).find(n=>n.props?.type==='checkbox').props.checked,true);
   pendingPreviews[0]({preview:{as_of_date:props.today,revision:'c'.repeat(64),candidates:[]}});await Promise.resolve();tree=render();assert.match(text(tree),/Monthly IT Support Retainer/);
   const checkbox=all(tree).find(n=>n.props?.type==='checkbox');checkbox.props.onChange({target:{checked:false}});tree=render();assert.equal(all(tree).find(n=>n.props?.type==='checkbox').props.checked,false);
   all(tree).find(n=>n.props?.type==='checkbox').props.onChange({target:{checked:true}});tree=render();
   const submit=async()=>{const f=new FormData();for(const n of all(tree).filter(n=>n.props?.type==='hidden'))f.set(n.props.name,n.props.value);await tree.props.action(f);tree=render();};
-  await submit();assert.match(text(tree),/Billing activity changed/);assert.equal(all(tree).filter(n=>n.type==='button').at(-1).props.disabled,true);
-  all(tree).find(n=>n.type==='button'&&text(n)==='Refresh charges').props.onClick();tree=render();
+  await submit();assert.match(text(tree),/Billing activity changed/);assert.equal(all(tree).filter(n=>(n.type==='button'||n.type?.name==='Button')).at(-1).props.disabled,true);
+  all(tree).find(n=>(n.type==='button'||n.type?.name==='Button')&&text(n)==='Refresh charges').props.onClick();tree=render();
   const freshRevision='d'.repeat(64);pendingPreviews[2]({preview:{as_of_date:props.today,revision:freshRevision,candidates:[charge(candidate,600)]}});await Promise.resolve();tree=render();assert.match(text(tree),/600/);
   nextSave={uncertain:true,message:'Retry same submission'};await submit();assert.equal(storage.size,1);assert.equal(all(tree).find(n=>n.type==='fieldset').props.disabled,true);
   const saved=saves.at(-1);slots.length=0;cleanup.forEach(fn=>fn?.());cleanup.length=0;tree=render();tree=render();
@@ -92,6 +92,6 @@ test('editor selects retained charges only and populates editable custom fields'
  function all(n){if(!n||typeof n!=='object')return [];return [n,...[n.props?.children].flat(Infinity).flatMap(all)];}
  function render(){cursor=0;const tree=Component({customers:[{id,company_name:'Snapshot',is_active:true,default_payment_terms_days:30,agreement:null}],today:'2025-09-15',initialRequestId:id,owner:'edit-test',editing});while(effects.length)effects.shift()();return tree;}
  render();render();await Promise.resolve();const tree=render();const nodes=all(tree);
- assert.deepEqual(nodes.filter(n=>n.props?.type==='checkbox').map(n=>n.props.checked),[true,false]);assert.equal(nodes.find(n=>n.type==='select').props.disabled,true);
- assert.ok(nodes.some(n=>n.type==='input'&&n.props.value==='Original custom'));assert.ok(nodes.some(n=>n.type==='button'&&n.props.children==='Save Changes'));
+ assert.deepEqual(nodes.filter(n=>n.props?.type==='checkbox').map(n=>n.props.checked),[true,false]);assert.equal(nodes.find(n=>(n.type==='select'||n.type?.name==='Select')).props.disabled,true);
+ assert.ok(nodes.some(n=>(n.type==='input'||n.type?.name==='Input')&&n.props.value==='Original custom'));assert.ok(nodes.some(n=>(n.type==='button'||n.type?.name==='Button')&&n.props.children==='Save Changes'));
 });

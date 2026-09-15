@@ -18,6 +18,10 @@ test('ledger uses complete RPC totals and separates payment void from invoice vo
  const result={page:1,page_size:25,total_rows:100,total_pages:4,payments_received:990,payment_count:99,average_payment:10,rows:[{payment_id:id,invoice_id:id,customer_id:id,invoice_number:1001,company_name_snapshot:'Example',invoice_status:'void',payment_date:'2026-09-01',amount:999,payment_method:'other',reference:'Check 123',payment_status:'active'}]};
  const report=parsePaymentReport(result);const html=renderToStaticMarkup(createElement(load('@/components/payments/report-view').PaymentReportView,{data:{filters,customers:[],report}}));
  assert.match(html,/\$990.00/);assert.match(html,/Invoice Void/);assert.match(html,/>Active</);assert.match(html,/Check 123/);assert.match(html,/\/customers\//);assert.match(html,/#payment-history/);assert.match(html,/page=2/);assert.match(html,/Record Payment/);assert.match(html,/Payment date From/);assert.match(html,/>ACH</);assert.match(html,/>Other</);
+ assert.match(html,/All payment dates/);
+ assert.ok(html.indexOf('Filtered payment summary')<html.indexOf('aria-label="Payment filters"'));
+ const headings=[...html.matchAll(/<th[^>]*scope="col"[^>]*>([^<]+)<\/th>/g)].map(m=>m[1]);
+ assert.deepEqual(headings,['Payment date','Customer','Invoice','Method','Reference','Status','Amount']);
  assert.throws(()=>parsePaymentReport({...result,rows:[{...result.rows[0],amount:null}]}));
 });
 test('all five recording methods and future server errors use the existing action',async()=>{

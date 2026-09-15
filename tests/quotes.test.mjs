@@ -59,6 +59,6 @@ test('backdated invoice input and due dates stay calendar dates across DST',()=>
  assert.equal(m.previewDueDate('2026-03-01',30),'2026-03-31');
  assert.equal(m.previewDueDate('2026-11-01',30),'2026-12-01');
  const source=readFileSync(new URL('../src/components/invoices/create-invoice-form.tsx',import.meta.url),'utf8');
- assert.match(source,/Invoice date<input required type="date"/);
+ assert.match(source,/label="Invoice date"><Input required type="date"/);
  assert.match(source,/issue_date:today/);
 });

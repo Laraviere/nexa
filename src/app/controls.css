@@ -1,0 +1,71 @@
+/* Phase 2 presentation only. No shell, layout or business-state selectors. */
+@layer components {
+  .nexa-button {
+    display: inline-flex;
+    min-height: 44px;
+    max-width: 100%;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+  .nexa-button--primary { background: var(--control-primary); color: white; }
+  .nexa-button--primary:hover:not(:disabled) { background: #155e75; }
+  .nexa-button--primary:active:not(:disabled) { background: #164e63; }
+  .nexa-button--secondary { border-color: var(--border-control); background: var(--surface); color: var(--ink); }
+  .nexa-button--secondary:hover:not(:disabled), .nexa-button--quiet:hover:not(:disabled) { background: #f1f5f9; }
+  .nexa-button--quiet { color: var(--control-primary); background: transparent; }
+  .nexa-button--destructive { color: #9f1239; background: #fff1f2; border-color: #fda4af; }
+  .nexa-button--destructive:hover:not(:disabled) { background: #ffe4e6; border-color: #be123c; }
+  .nexa-button:disabled { opacity: 0.55; cursor: not-allowed; }
+  .nexa-control {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 44px;
+    border: 1px solid var(--border-control);
+    border-radius: 0.375rem;
+    background: var(--surface);
+    color: var(--ink);
+    padding: 0.5rem 0.75rem;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+  .nexa-control:hover:not(:disabled) { border-color: var(--text-muted); }
+  .nexa-control:focus { border-color: var(--focus-ring); }
+  .nexa-control[aria-invalid="true"] { border-color: var(--semantic-danger); }
+  .nexa-control:disabled { background: #f1f5f9; color: var(--text-secondary); cursor: not-allowed; }
+  .nexa-textarea { min-height: 6rem; resize: vertical; }
+  .nexa-button:focus-visible, .nexa-control:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+  .nexa-badge { display: inline-flex; max-width: 100%; align-items: center; border: 1px solid; border-radius: 0.25rem; padding: 0.125rem 0.5rem; font-size: 0.75rem; font-weight: 500; line-height: 1.5; }
+  .nexa-tone--neutral { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+  .nexa-tone--info { background: #ecfeff; color: #155e75; border-color: #a5f3fc; }
+  .nexa-tone--success { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+  .nexa-tone--warning { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+  .nexa-tone--danger { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
+  .nexa-notice { border-width: 1px; border-style: solid; border-radius: 0.375rem; padding: 0.75rem; font-size: 0.875rem; line-height: 1.5; overflow-wrap: anywhere; }
+  .nexa-surface { min-width: 0; border: 1px solid var(--border-structural); border-radius: 0.625rem; background: var(--surface); }
+  .nexa-surface--standard { padding: 1.25rem; }
+  .nexa-surface--compact { padding: 1rem; }
+  .nexa-confirmation { min-width: 0; border-left: 3px solid var(--control-primary); padding: 0.25rem 0 0.25rem 1rem; }
+  .nexa-confirmation--destructive { border-left-color: var(--semantic-danger); }
+  @media (min-width: 640px) and (pointer: fine) {
+    .nexa-button, .nexa-control { min-height: 40px; }
+    .nexa-button--compact { padding: 0.375rem 0.75rem; }
+    .nexa-control { font-size: 0.875rem; }
+    .nexa-textarea { min-height: 6rem; }
+  }
+}

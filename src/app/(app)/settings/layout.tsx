@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/ui/detail";
+import { PageContainer } from "@/components/ui/page-container";
 export default function SettingsLayout({children}:{children:React.ReactNode}) {
-  return <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 sm:py-10"><h1 className="text-3xl font-semibold tracking-tight">Settings</h1><nav aria-label="Settings" className="my-6"><Link href="/settings/payments" aria-current="page" className="inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white">Payments</Link></nav>{children}</main>;
+  return <PageContainer width="form"><div className="nexa-form-page"><PageHeader title="Settings" context="Manage payment methods and invoice check instructions." status={null} actions={null}/><nav aria-label="Settings" className="mb-6 border-b border-structural"><Link href="/settings/payments" aria-current="page" className="inline-flex min-h-11 items-center border-b-2 border-primary px-3 text-sm font-semibold text-primary">Payments</Link></nav>{children}</div></PageContainer>;
 }
