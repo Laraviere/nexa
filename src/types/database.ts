@@ -566,29 +566,35 @@ export type Database = {
       }
       payment_settings: {
         Row: {
+          ach_enabled: boolean
           card_enabled: boolean
           cash_enabled: boolean
           check_enabled: boolean
           checks_payable_to: string | null
           created_at: string
+          other_enabled: boolean
           singleton: boolean
           updated_at: string
         }
         Insert: {
+          ach_enabled?: boolean
           card_enabled?: boolean
           cash_enabled?: boolean
           check_enabled?: boolean
           checks_payable_to?: string | null
           created_at?: string
+          other_enabled?: boolean
           singleton?: boolean
           updated_at?: string
         }
         Update: {
+          ach_enabled?: boolean
           card_enabled?: boolean
           cash_enabled?: boolean
           check_enabled?: boolean
           checks_payable_to?: string | null
           created_at?: string
+          other_enabled?: boolean
           singleton?: boolean
           updated_at?: string
         }
@@ -1052,6 +1058,28 @@ export type Database = {
           total_rows: number
         }[]
       }
+      get_payment_report: {
+        Args: {
+          p_customer_id?: string
+          p_method?: string
+          p_page?: number
+          p_page_size?: number
+          p_payment_date_from?: string
+          p_payment_date_to?: string
+          p_search?: string
+          p_status?: string
+        }
+        Returns: {
+          average_payment: number
+          page: number
+          page_size: number
+          payment_count: number
+          payments_received: number
+          rows: Json
+          total_pages: number
+          total_rows: number
+        }[]
+      }
       get_retainer_period_usage: {
         Args: { p_billing_agreement_id: string; p_reference_date: string }
         Returns: {
@@ -1154,11 +1182,13 @@ export type Database = {
       update_checks_payable_to: {
         Args: { p_checks_payable_to: string }
         Returns: {
+          ach_enabled: boolean
           card_enabled: boolean
           cash_enabled: boolean
           check_enabled: boolean
           checks_payable_to: string | null
           created_at: string
+          other_enabled: boolean
           singleton: boolean
           updated_at: string
         }
@@ -1195,16 +1225,20 @@ export type Database = {
       }
       update_payment_settings: {
         Args: {
+          p_ach_enabled?: boolean
           p_card_enabled: boolean
           p_cash_enabled: boolean
           p_check_enabled: boolean
+          p_other_enabled?: boolean
         }
         Returns: {
+          ach_enabled: boolean
           card_enabled: boolean
           cash_enabled: boolean
           check_enabled: boolean
           checks_payable_to: string | null
           created_at: string
+          other_enabled: boolean
           singleton: boolean
           updated_at: string
         }

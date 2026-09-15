@@ -1,0 +1,17 @@
+import Link from "next/link";
+import { paymentSelection } from "@/lib/payments/record-server";
+import type { ReportParams } from "@/lib/payments/report";
+import { RecordPayment } from "@/components/payments/record-payment";
+import { businessDate,formatMoney } from "@/lib/billing/model";
+const input="mt-2 block w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm";
+export default async function NewPaymentPage({searchParams}:{searchParams:Promise<ReportParams>}) {
+  const data=await paymentSelection(await searchParams);
+  const {selected}=data;
+  return <div className="mx-auto max-w-3xl space-y-6"><header><Link href="/payments" className="text-sm font-medium text-cyan-800 hover:underline">← Payments</Link><h1 className="mt-3 text-2xl font-semibold tracking-tight">Record Payment</h1><p className="mt-2 text-sm text-slate-600">Choose a customer and an invoice with a balance due.</p></header>
+    <section className="space-y-5 rounded-xl border border-slate-200 bg-white p-5">
+      <form action="/payments/new" method="get"><label className="block text-sm font-medium">Customer<select key={data.customer} className={input} name="customer" defaultValue={data.customer} required><option value="">Choose a customer</option>{data.customers.map(c=><option key={c.id} value={c.id}>{c.company_name}{c.is_active?"":" (Archived)"}</option>)}</select></label><button className="mt-3 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium">Choose customer</button></form>
+      {data.customer&&<form action="/payments/new" method="get" className="border-t border-slate-100 pt-5"><input type="hidden" name="customer" value={data.customer}/><label className="block text-sm font-medium">Invoice<select key={`${data.customer}:${data.invoiceId}`} className={input} name="invoice" defaultValue={data.invoices.some(i=>i.id===data.invoiceId)?data.invoiceId:""} required><option value="">Choose an invoice</option>{data.invoices.map(i=><option key={i.id} value={i.id}>#{i.invoice_number} — {formatMoney(i.balance_due)} due</option>)}</select></label><p className="mt-2 text-xs text-slate-500">Only Ready or Sent invoices with a positive balance are available.</p>{data.invoices.length?<button className="mt-3 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium">Choose invoice</button>:<p className="mt-3 text-sm">This customer has no eligible invoices.</p>}</form>}
+    </section>
+    {selected&&<section className="rounded-xl border border-slate-200 bg-white p-5"><h2 className="font-semibold"><Link href={`/invoices/${selected.invoice.id}`} className="text-cyan-800 hover:underline">Invoice #{selected.invoice.invoice_number}</Link></h2><dl className="mt-4 grid gap-4 sm:grid-cols-3">{[["Invoice total",selected.summary.invoice_total],["Amount paid",selected.summary.amount_paid],["Balance due",selected.summary.balance_due]].map(([label,value])=><div key={String(label)}><dt className="text-xs text-slate-500">{label}</dt><dd className="mt-1 font-semibold tabular-nums">{formatMoney(Number(value))}</dd></div>)}</dl>{!selected.canRecord&&<p className="mt-4 text-sm text-slate-600">This invoice cannot receive a new payment. Any pending submission can still be confirmed safely.</p>}<RecordPayment key={selected.invoice.id} invoiceId={selected.invoice.id} owner={data.owner} balance={selected.summary.balance_due!} today={businessDate()} settings={selected.settings} canRecord={selected.canRecord}/></section>}
+  </div>;
+}

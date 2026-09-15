@@ -60,7 +60,7 @@ export function formatInvoiceQuantity(quantity: number, unit: string) {
 export function Columns() {
   return <View style={styles.columns}><Text style={styles.description}>DESCRIPTION</Text><Text style={styles.quantity}>QTY / UNIT</Text><Text style={styles.rate}>RATE</Text><Text style={styles.amount}>AMOUNT</Text></View>;
 }
-export function InvoiceDocument({ invoice: v, items, totals, checksPayableTo }: InvoicePdfData) {
+export function InvoiceDocument({ invoice: v, items, totals, checksPayableTo, payment }: InvoicePdfData) {
   const address = [v.billing_address_line1_snapshot, v.billing_address_line2_snapshot,
     [v.billing_city_snapshot, v.billing_state_snapshot, v.billing_postal_code_snapshot].filter(Boolean).join(", "), v.billing_country_snapshot];
   return <Document title={`Nexa Invoice ${v.invoice_number}`} author={invoiceBusiness.name} subject="Invoice" language="en-US">
@@ -87,7 +87,12 @@ export function InvoiceDocument({ invoice: v, items, totals, checksPayableTo }: 
       <View style={styles.totals} wrap={false}>
         <View style={styles.totalRow}><Text>Subtotal</Text><Text>{formatMoney(totals.subtotal)}</Text></View>
         <View style={styles.totalRow}><Text>Tax</Text><Text>{formatMoney(totals.tax_amount)}</Text></View>
-        <View style={[styles.totalRow, styles.grandTotal]}><Text>Total</Text><Text>{formatMoney(totals.total)}</Text></View>
+        {payment && payment.amount_paid > 0 ? <>
+          <View style={styles.totalRow}><Text>Invoice Total</Text><Text>{formatMoney(totals.total)}</Text></View>
+          <View style={styles.totalRow}><Text>Amount Paid</Text><Text>{formatMoney(payment.amount_paid)}</Text></View>
+          <View style={[styles.totalRow, styles.grandTotal]}><Text>Balance Due</Text><Text>{formatMoney(payment.balance_due)}</Text></View>
+          {v.status === "void" ? <Text style={styles.status}>Historical balance — not payable</Text> : payment.payment_status === "paid" && <Text style={styles.status}>Paid in full</Text>}
+        </> : <View style={[styles.totalRow, styles.grandTotal]}><Text>Total</Text><Text>{formatMoney(totals.total)}</Text></View>}
       </View>
       {[["NOTES", v.notes], ["TERMS", v.terms]].map(([label, value]) => value?.trim() && <View key={label} style={styles.prose}><Text style={styles.label} minPresenceAhead={25}>{label}</Text><Text style={styles.proseBody} orphans={2} widows={2}>{value}</Text></View>)}
       {checksPayableTo?.trim() && <View style={styles.prose} wrap={false}>

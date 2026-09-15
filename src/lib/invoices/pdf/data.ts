@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tables } from "@/types/database";
 
 export type InvoicePdfData = {
+  payment?: { amount_paid: number; balance_due: number; payment_status: string };
   checksPayableTo?: string | null;
   invoice: Tables<"invoices">;
   items: Tables<"invoice_items">[];
@@ -31,6 +32,8 @@ export async function loadInvoicePdf(client: SupabaseClient<Database>, id: strin
     }
     const summary = await client.from("invoice_totals").select("subtotal,tax_amount,total").eq("invoice_id", id).maybeSingle();
     check(summary.error);
+    const paymentResult = await client.from("invoice_payment_summary").select("invoice_total,amount_paid,balance_due,payment_status").eq("invoice_id", id).maybeSingle();
+    check(paymentResult.error);
     const revision = await client.from("invoices").select("updated_at").eq("id", id).maybeSingle();
     check(revision.error);
     if (!revision.data) throw new InvoicePdfError(404, "Invoice not found.");
@@ -39,12 +42,16 @@ export async function loadInvoicePdf(client: SupabaseClient<Database>, id: strin
     if (!totals || totals.subtotal === null || totals.tax_amount === null || totals.total === null) {
       throw new InvoicePdfError(500, "Unable to load invoice totals.");
     }
+    const payment = paymentResult.data;
+    if (!payment || payment.amount_paid === null || payment.balance_due === null || !payment.payment_status
+      || ![payment.amount_paid, payment.balance_due].every(n => Number.isFinite(n) && n >= 0)
+      || payment.invoice_total !== totals.total) throw new InvoicePdfError(500, "Unable to load invoice payment summary.");
     // Current remittance instructions apply to old and new invoices alike.
     // Use this request's authenticated client; never cache a payee in invoice data.
     const settings = await client.from("payment_settings").select("checks_payable_to").eq("singleton",true).single();
     check(settings.error);
     if (!settings.data) throw new InvoicePdfError(500, "Unable to load invoice check instructions.");
-    return { checksPayableTo: settings.data.checks_payable_to?.trim() || null, invoice: header.data, items, totals: { subtotal: totals.subtotal, tax_amount: totals.tax_amount, total: totals.total } };
+    return { payment: { amount_paid: payment.amount_paid, balance_due: payment.balance_due, payment_status: payment.payment_status }, checksPayableTo: settings.data.checks_payable_to?.trim() || null, invoice: header.data, items, totals: { subtotal: totals.subtotal, tax_amount: totals.tax_amount, total: totals.total } };
   }
   throw new InvoicePdfError(409, "Invoice changed while preparing the PDF. Please try again.");
 }

@@ -9,6 +9,11 @@ do $$
 declare c uuid;v uuid;r record;p1 uuid;p2 uuid;p3 uuid;k uuid:=gen_random_uuid();n integer;bad text;pr record;status_before text;
 begin
  perform pg_temp.pay_assert((select count(*)=1 and bool_and(cash_enabled and check_enabled and card_enabled) from public.payment_settings),'Seeded singleton defaults');
+ -- This shared historical suite also runs after the five-method upgrade.
+ -- Disable the added methods so its original three-method scenarios still apply.
+ if (select to_jsonb(s) ? 'ach_enabled' from public.payment_settings s) then
+   execute 'select public.update_payment_settings(true,true,true,false,false)';
+ end if;
  perform pg_temp.pay_reject('select public.update_payment_settings(false,false,false)');
  perform pg_temp.pay_reject('update public.payment_settings set cash_enabled=false,check_enabled=false,card_enabled=false');
  perform pg_temp.pay_reject('delete from public.payment_settings');

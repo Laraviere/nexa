@@ -6,12 +6,12 @@ import { recordPaymentInput, type PaymentState } from "@/lib/payments/model";
 import type { Database } from "@/types/database";
 export async function savePaymentSettings(_previous: PaymentState, form: FormData): Promise<PaymentState> {
   const client = await customerClient();
-  const args: Database["public"]["Functions"]["update_payment_settings"]["Args"] = { p_cash_enabled: form.get("cash_enabled") === "on", p_check_enabled: form.get("check_enabled") === "on", p_card_enabled: form.get("card_enabled") === "on" };
-  if (!args.p_cash_enabled && !args.p_check_enabled && !args.p_card_enabled) return { message: "At least one payment method must remain enabled." };
+  const args: Database["public"]["Functions"]["update_payment_settings"]["Args"] = { p_cash_enabled: form.get("cash_enabled") === "on", p_check_enabled: form.get("check_enabled") === "on", p_card_enabled: form.get("card_enabled") === "on", p_ach_enabled: form.get("ach_enabled") === "on", p_other_enabled: form.get("other_enabled") === "on" };
+  if (!args.p_cash_enabled && !args.p_check_enabled && !args.p_card_enabled && !args.p_ach_enabled && !args.p_other_enabled) return { message: "At least one payment method must remain enabled." };
   try {
     const { data, error } = await client.rpc("update_payment_settings",args);
     if (error || !data) return { message: "Unable to save payment methods. Please try again." };
-    revalidatePath("/settings/payments");revalidatePath("/invoices/[id]","page");
+    revalidatePath("/payments");revalidatePath("/settings/payments");revalidatePath("/invoices/[id]","page");
     return { success: true, message: "Payment methods saved." };
   } catch { return { message: "Unable to confirm the settings change. Refresh to check the saved methods." }; }
 }
@@ -22,6 +22,7 @@ export async function recordPayment(_previous: PaymentState, form: FormData): Pr
   try {
     const { data, error } = await client.rpc("record_invoice_payment",input.args);
     if (error) {
+      if (error.code === "22023" && error.message.includes("future")) return { message: "Payment date cannot be after today in New York." };
       if (error.code === "P1001") return { message: "This invoice must be marked Ready before a payment can be recorded." };
       if (error.code === "22023" && error.message.includes("not enabled")) {
         const result = await client.from("payment_settings").select("*").eq("singleton",true).single();
@@ -35,7 +36,7 @@ export async function recordPayment(_previous: PaymentState, form: FormData): Pr
       return { message: "We could not confirm the payment. Retry this same submission safely.", uncertain: true };
     }
     if (!data?.[0]) return { message: "We could not confirm the payment. Retry this same submission safely.", uncertain: true };
-    revalidatePath(`/invoices/${data[0].invoice_id}`);revalidatePath("/invoices");
+    revalidatePath(`/invoices/${data[0].invoice_id}`);revalidatePath("/invoices");revalidatePath("/payments");revalidatePath("/dashboard");revalidatePath("/");
     return { success: true, message: data[0].payment_voided_at ? "This payment was already voided. No new payment was recorded." : "Payment recorded." };
   } catch { return { message: "Connection interrupted. Retry this same payment to confirm its result.", uncertain: true }; }
 }
@@ -46,7 +47,7 @@ export async function voidPayment(_previous: PaymentState, form: FormData): Prom
   try {
     const { data, error } = await client.rpc("void_invoice_payment",args);
     if (error || !data) return { message: "Unable to void this payment. Refresh its history and try again." };
-    revalidatePath(`/invoices/${data.invoice_id}`);revalidatePath("/invoices");
+    revalidatePath(`/invoices/${data.invoice_id}`);revalidatePath("/invoices");revalidatePath("/payments");revalidatePath("/dashboard");revalidatePath("/");
     return { success: true, message: "Payment voided. Its history has been preserved." };
   } catch { return { message: "Unable to confirm the correction. Retry with the same reason." }; }
 }

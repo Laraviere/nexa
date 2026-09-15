@@ -8,7 +8,7 @@ const navigation: ReadonlyArray<{ label: string; href?: string }> = [
   { label: "Time", href: "/time" },
   { label: "Quotes", href: "/quotes" },
   { label: "Invoices", href: "/invoices" },
-  { label: "Payments" },
+  { label: "Payments", href: "/payments" },
   { label: "Settings", href: "/settings" },
 ] as const;
 

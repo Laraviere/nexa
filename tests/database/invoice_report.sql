@@ -89,7 +89,7 @@ do $$declare c uuid;a uuid;b uuid;r record;begin
  insert into public.customers(company_name) values('Decimal fixture') returning id into c;
  a:=pg_temp.report_invoice(c,'2026-10-01','2026-10-02',0.10,'ready');
  b:=pg_temp.report_invoice(c,'2026-10-01','2026-10-02',0.20,'ready');
- perform public.record_invoice_payment(a,0.10,'2026-10-01','cash',gen_random_uuid());
+ perform public.record_invoice_payment(a,0.10,(now() at time zone 'America/New_York')::date,'cash',gen_random_uuid());
  select * into r from public.get_invoice_report(p_customer_id=>c);
  perform pg_temp.report_assert(r.total_invoiced=0.30 and r.amount_paid=0.10 and r.outstanding_balance=0.20,'Exact fractional-cent-free numeric sums');
  perform pg_temp.report_assert(r.rows->0->>'invoice_id'=b::text,'Newest same-date invoice number descending');

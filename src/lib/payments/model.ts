@@ -5,7 +5,7 @@ export type Payment = Tables<"invoice_payments">;
 export type PaymentSummary = Tables<"invoice_payment_summary">;
 export type RecordPaymentArgs = Database["public"]["Functions"]["record_invoice_payment"]["Args"];
 export type PaymentState = { message?: string; success?: boolean; uncertain?: boolean; settings?: PaymentSettings };
-export const paymentMethods = { cash: "Cash", check: "Check", card: "Card" } as const;
+export const paymentMethods = { cash: "Cash", check: "Check", card: "Card", ach: "ACH", other: "Other" } as const;
 export const paymentStatuses = { unpaid: "Unpaid", partially_paid: "Partially Paid", paid: "Paid" } as const;
 export function enabledMethods(settings: PaymentSettings) {
   return (Object.keys(paymentMethods) as (keyof typeof paymentMethods)[]).filter(method => settings[`${method}_enabled`]);

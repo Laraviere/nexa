@@ -33,7 +33,7 @@ test("payment validation and server actions use generated RPCs with stable reque
  error={code:"22023",message:"This payment method is not enabled."};const disabled=await actions.recordPayment({},form);assert.match(disabled.message,/no longer enabled/);assert.equal(disabled.settings.card_enabled,false);
  error={code:"P1001",message:"private database details"};const ineligible=await actions.recordPayment({},form);assert.equal(ineligible.message,"This invoice must be marked Ready before a payment can be recorded.");assert.ok(!ineligible.uncertain);
  error={code:"500",message:"private details"};const uncertain=await actions.recordPayment({},form);assert.equal(uncertain.uncertain,true);assert.ok(!uncertain.message.includes("private"));error=null;
- const settings=new FormData();assert.match((await actions.savePaymentSettings({},settings)).message,/At least one/);settings.set("cash_enabled","on");result={cash_enabled:true};assert.equal((await actions.savePaymentSettings({},settings)).success,true);assert.equal(calls.at(-1)[0],"update_payment_settings");assert.deepEqual(calls.at(-1)[1],{p_cash_enabled:true,p_check_enabled:false,p_card_enabled:false});
+ const settings=new FormData();assert.match((await actions.savePaymentSettings({},settings)).message,/At least one/);settings.set("cash_enabled","on");result={cash_enabled:true};assert.equal((await actions.savePaymentSettings({},settings)).success,true);assert.equal(calls.at(-1)[0],"update_payment_settings");assert.deepEqual(calls.at(-1)[1],{p_cash_enabled:true,p_check_enabled:false,p_card_enabled:false,p_ach_enabled:false,p_other_enabled:false});
  const correction=new FormData();correction.set("payment_id",id);assert.match((await actions.voidPayment({},correction)).message,/reason/);correction.set("reason","Correction");correction.set("confirmed","yes");result={invoice_id:id};assert.equal((await actions.voidPayment({},correction)).success,true);assert.equal(calls.at(-1)[0],"void_invoice_payment");
 });
 test("payment form defaults, enabled methods, accessible switches and retained history",()=>{
@@ -44,8 +44,8 @@ test("payment form defaults, enabled methods, accessible switches and retained h
  assert.match(html,/value="300.00"/);assert.match(html,/value="2026-09-10"/);assert.match(html,/type="radio"/);assert.match(html,/Cash/);assert.match(html,/Check/);assert.ok(!html.includes('value="card"'));assert.match(html,/partial payment/);assert.match(html,/flex-wrap/);assert.match(html,/sm:grid-cols-2/);
  index=0;
  const blocked=render(h.load("@/components/payments/record-payment").RecordPayment({invoiceId:id,owner:id,balance:300,today:"2026-09-10",settings,canRecord:false}));
- assert.ok(!blocked.includes("Mark as Paid"));assert.ok(!blocked.includes("Record invoice payment"),"A stale open panel closes when the refreshed invoice becomes ineligible");
- const toggles=render(h.load("@/components/payments/settings-form").PaymentSettingsForm({settings}));assert.equal((toggles.match(/role="switch"/g)||[]).length,3);assert.match(toggles,/Historical payments remain unchanged/);
+ assert.ok(!blocked.includes("Record Payment"));assert.ok(!blocked.includes("Record invoice payment"),"A stale open panel closes when the refreshed invoice becomes ineligible");
+ const toggles=render(h.load("@/components/payments/settings-form").PaymentSettingsForm({settings}));assert.equal((toggles.match(/role="switch"/g)||[]).length,5);assert.match(toggles,/Historical payments remain unchanged/);
  const history=render(h.load("@/components/payments/payment-history").PaymentHistory({payments:[{id,amount:200,payment_method:"card",payment_date:"2026-09-10",reference:"Receipt",voided_at:"2026-09-10",void_reason:"Correction"}]}));assert.match(history,/Card/);assert.match(history,/Void/);assert.match(history,/Correction/);assert.ok(!history.includes("Void payment"));assert.ok(!history.includes("Delete"));
 });
 

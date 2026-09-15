@@ -20,7 +20,7 @@ test('invoice PDF payee is optional and printed once after multi-page content; q
 });
 test('existing invoice loads current payee on every PDF read without writing financial rows',async()=>{
  const data=fixture();let payee='First Payee';let error=null;
- const client={from(table){return {select(){return this},eq(){return this},is(){return this},order(){return this},range:async()=>({data:data.items,error:null}),maybeSingle:async()=>({data:table==='invoices'?{...data.invoice,updated_at:'fixed'}:data.totals,error:null}),single:async()=>({data:{checks_payable_to:payee},error})};}};
+ const client={from(table){return {select(){return this},eq(){return this},is(){return this},order(){return this},range:async()=>({data:data.items,error:null}),maybeSingle:async()=>({data:table==='invoices'?{...data.invoice,updated_at:'fixed'}:table==='invoice_payment_summary'?{invoice_total:120,amount_paid:0,balance_due:120,payment_status:'unpaid'}:data.totals,error:null}),single:async()=>({data:{checks_payable_to:payee},error})};}};
  const {loadInvoicePdf}=dashboardHarness()('@/lib/invoices/pdf/data');
  const first=await loadInvoicePdf(client,'existing');assert.equal(first.checksPayableTo,'First Payee');payee='Second Payee';assert.equal((await loadInvoicePdf(client,'existing')).checksPayableTo,'Second Payee');
  payee=' ';assert.equal((await loadInvoicePdf(client,'existing')).checksPayableTo,null);
