@@ -1,0 +1,71 @@
+/* Authenticated-only graphite palette. Login, the navy navigation and PDF
+   renderers retain their own presentation. Layout and sizing are unchanged. */
+.nexa-graphite {
+  --workspace: #2b2f36;
+  --surface: #363c45;
+  --surface-raised: #414955;
+  --surface-subtle: #303740;
+  --ink: #eef2f6;
+  --text-secondary: #c3cbd5;
+  --text-muted: #b6c0cc;
+  --border-structural: #56616f;
+  --border-control: #8592a3;
+  --focus-ring: #67d4ed;
+  --workspace-link: #67d4ed;
+  --workspace-on-primary: #ffffff;
+  --workspace-info-bg: #254451;
+  --workspace-info-text: #a2e2f0;
+  --workspace-info-border: #467887;
+  --workspace-warning-bg: #483d2b;
+  --workspace-warning-text: #f4cd89;
+  --workspace-warning-border: #94713e;
+  --workspace-success-bg: #244236;
+  --workspace-success-text: #a6e7c6;
+  --workspace-success-border: #4d8267;
+  --workspace-danger-bg: #4c303a;
+  --workspace-danger-text: #ffb8c8;
+  --workspace-danger-border: #9b6071;
+}
+.nexa-graphite #main-content { color-scheme:dark; }
+/* Compatibility for existing feature-local utility colors. Keep this mapping
+   centralized rather than changing each feature's markup or semantic logic. */
+.nexa-graphite #main-content :is(.bg-white, .bg-white\/60) { background-color:var(--surface); }
+.nexa-graphite #main-content :is(.bg-slate-50, .bg-slate-100) { background-color:var(--surface-subtle); }
+.nexa-graphite #main-content :is(.hover\:bg-slate-50:hover, .hover\:bg-slate-100:hover) { background-color:var(--surface-raised); }
+.nexa-graphite #main-content :is(.text-slate-950, .text-slate-900, .text-slate-800) { color:var(--ink); }
+.nexa-graphite #main-content :is(.text-slate-700, .text-slate-600) { color:var(--text-secondary); }
+.nexa-graphite #main-content .text-slate-500 { color:var(--text-muted); }
+.nexa-graphite #main-content :is(.border-slate-100, .border-slate-200) { border-color:var(--border-structural); }
+.nexa-graphite #main-content .border-slate-300 { border-color:var(--border-control); }
+.nexa-graphite #main-content :is(.divide-slate-100, .divide-slate-200) > :not(:last-child) { border-color:var(--border-structural); }
+.nexa-graphite #main-content :is(.text-cyan-700, .text-cyan-800, .text-cyan-900, .text-primary, .nexa-list-link) { color:var(--workspace-link); }
+.nexa-graphite #main-content :is(.hover\:text-cyan-800:hover, .hover\:text-slate-700:hover) { color:var(--workspace-link); }
+.nexa-graphite #main-content :is(.bg-cyan-50, .bg-cyan-50\/40) { background-color:var(--workspace-info-bg); }
+.nexa-graphite #main-content :is(.border-cyan-100, .border-cyan-200, .border-cyan-300) { border-color:var(--workspace-info-border); }
+.nexa-graphite #main-content .bg-amber-50 { background-color:var(--workspace-warning-bg); }
+.nexa-graphite #main-content :is(.text-amber-800, .text-amber-900, .text-amber-950) { color:var(--workspace-warning-text); }
+.nexa-graphite #main-content .border-amber-200 { border-color:var(--workspace-warning-border); }
+.nexa-graphite #main-content .bg-emerald-50 { background-color:var(--workspace-success-bg); }
+.nexa-graphite #main-content .text-emerald-700 { color:var(--workspace-success-text); }
+.nexa-graphite #main-content .bg-rose-50 { background-color:var(--workspace-danger-bg); }
+.nexa-graphite #main-content :is(.text-rose-700, .text-rose-800) { color:var(--workspace-danger-text); }
+.nexa-graphite #main-content :is(.bg-cyan-400, .bg-cyan-500) { background-color:var(--control-primary); }
+.nexa-graphite #main-content .nexa-tone--neutral { background:var(--surface-subtle); color:var(--text-secondary); border-color:var(--border-control); }
+.nexa-graphite #main-content .nexa-tone--info { background:var(--workspace-info-bg); color:var(--workspace-info-text); border-color:var(--workspace-info-border); }
+.nexa-graphite #main-content .nexa-tone--success { background:var(--workspace-success-bg); color:var(--workspace-success-text); border-color:var(--workspace-success-border); }
+.nexa-graphite #main-content .nexa-tone--warning { background:var(--workspace-warning-bg); color:var(--workspace-warning-text); border-color:var(--workspace-warning-border); }
+.nexa-graphite #main-content .nexa-tone--danger { background:var(--workspace-danger-bg); color:var(--workspace-danger-text); border-color:var(--workspace-danger-border); }
+.nexa-graphite #main-content .nexa-control:disabled { background:var(--surface-subtle); color:var(--text-muted); }
+.nexa-graphite #main-content .nexa-control[aria-invalid="true"] { border-color:var(--workspace-danger-border); }
+.nexa-graphite #main-content .nexa-button--quiet { color:var(--workspace-link); }
+.nexa-graphite #main-content :is(.nexa-button--secondary, .nexa-button--quiet):hover:not(:disabled) { background:var(--surface-raised); }
+.nexa-graphite #main-content .nexa-button--destructive { background:var(--workspace-danger-bg); color:var(--workspace-danger-text); border-color:var(--workspace-danger-border); }
+.nexa-graphite #main-content .nexa-button--destructive:hover:not(:disabled) { background:var(--surface-raised); }
+/* Existing local focus utilities must not dim the token-based keyboard outline. */
+.nexa-graphite #main-content :where(a,button,input,select,textarea,summary,[tabindex]):focus-visible { outline:2px solid var(--focus-ring); outline-offset:3px; }
+.nexa-graphite #main-content input::placeholder, .nexa-graphite #main-content textarea::placeholder { color:var(--text-muted); opacity:1; }
+.nexa-graphite #main-content .peer:checked ~ .peer-checked\:bg-cyan-50 { background-color:var(--workspace-info-bg); }
+.nexa-graphite #main-content .peer:checked ~ .peer-checked\:text-cyan-900 { color:var(--workspace-info-text); }
+.nexa-graphite #main-content .peer:focus-visible ~ [class*="peer-focus-visible"] { outline:2px solid var(--focus-ring); outline-offset:3px; }
+
+.nexa-graphite #main-content .peer:checked ~ .peer-checked\:text-white { color:var(--workspace-on-primary); }

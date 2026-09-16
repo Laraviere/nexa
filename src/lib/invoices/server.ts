@@ -9,14 +9,20 @@ export async function invoiceDetail(id: string) {
   const { data: invoice,error } = await client.from("invoices").select("*").eq("id",id).maybeSingle();
   if (error) throw new Error("Unable to load invoice.");
   if (!invoice) notFound();
-  const items = [];
-  for (let offset=0;;offset+=100) {
-    const result = await client.from("invoice_items").select("*").eq("invoice_id",id).is("superseded_at",null).order("position").range(offset,offset+99);
-    if (result.error) throw new Error("Unable to load invoice lines.");
-    items.push(...result.data);
-    if (result.data.length<100) break;
-  }
-  const { data: totals,error: totalsError } = await client.from("invoice_totals").select("*").eq("invoice_id",id).single();
+  // The invoice is authorized and exists. Lines and totals are independent reads.
+  const [items, { data: totals, error: totalsError }] = await Promise.all([
+    (async () => {
+      const items = [];
+      for (let offset=0;;offset+=100) {
+        const result = await client.from("invoice_items").select("*").eq("invoice_id",id).is("superseded_at",null).order("position").range(offset,offset+99);
+        if (result.error) throw new Error("Unable to load invoice lines.");
+        items.push(...result.data);
+        if (result.data.length<100) break;
+      }
+      return items;
+    })(),
+    client.from("invoice_totals").select("*").eq("invoice_id",id).single(),
+  ]);
   if (totalsError || totals.total===null || totals.subtotal===null || totals.tax_amount===null) throw new Error("Unable to load invoice totals.");
   return { invoice,items,totals };
 }

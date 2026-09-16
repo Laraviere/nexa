@@ -14,8 +14,7 @@ import { businessDate,formatBusinessDate,formatMoney } from "@/lib/billing/model
 import { units } from "@/lib/invoices/model";
 export default async function InvoicePage({params}:{params:Promise<{id:string}>}) {
   const {invoice:v,items,totals} = await invoiceDetail((await params).id);
-  const payments = await invoicePayments(v.id);
-  const quote = await sourceQuote(v.id);
+  const [payments, quote] = await Promise.all([invoicePayments(v.id), sourceQuote(v.id)]);
   const address = [v.billing_address_line1_snapshot,v.billing_address_line2_snapshot,[v.billing_city_snapshot,v.billing_state_snapshot,v.billing_postal_code_snapshot].filter(Boolean).join(", "),v.billing_country_snapshot].filter(Boolean);
   return <PageContainer width="document"><div className="nexa-detail-page"><Link href="/invoices" className="text-sm font-medium text-cyan-700">← Invoices</Link><PageHeader title={`Invoice #${v.invoice_number}`} context={v.company_name_snapshot} status={<><span className="inline-flex items-center gap-2"><span className="sr-only">Workflow: </span><StatusBadge domain="invoiceWorkflow" status={v.status}/></span><span className="inline-flex items-center gap-2"><span className="sr-only">Payment: </span><StatusBadge domain="invoicePayment" status={payments.summary.payment_status!}/></span></>} actions={<><ButtonAnchor variant="secondary" href={`/invoices/${v.id}/pdf`} target="_blank" rel="noopener noreferrer">View PDF<span className="sr-only"> (opens in a new tab)</span></ButtonAnchor>{v.status!=="void"&&<ButtonLink variant="secondary" href={`/invoices/${v.id}/edit`}>Edit Invoice</ButtonLink>}</>}/>
     {quote&&<p className="mb-5 text-sm text-slate-600">Created from <Link href={`/quotes/${quote.id}`} className="font-semibold text-cyan-700 underline">Quote Q-{quote.quote_number}</Link>.</p>}

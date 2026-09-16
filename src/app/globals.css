@@ -4,6 +4,7 @@
 @import "./details.css";
 @import "./form-pages.css";
 @import "./final-polish.css";
+@import "./workspace-theme.css";
 
 :root {
   --workspace: #f8fafc;
