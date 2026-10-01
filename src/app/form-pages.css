@@ -36,7 +36,57 @@
  .nexa-edit-line { grid-template-columns:minmax(0,1fr); }
 }
 
-/* Compact invoice composition, retaining existing control and mobile sizing. */
-.nexa-invoice-composer .nexa-edit-line { padding:.625rem 0; gap:.5rem .75rem; }
-.nexa-invoice-composer .nexa-form-summary { padding:0; border:0; background:transparent; }
-.nexa-invoice-composer .nexa-form-actions { margin-top:1rem; }
+/* Invoice workspace: a quiet activity selector beside the document summary. */
+.nexa-composer-layout { display:grid; align-items:start; gap:1.5rem; }
+.nexa-composer-main { min-width:0; padding:0; border:0; container:composer-main / inline-size; }
+.nexa-composer-details { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.nexa-composer-customer { grid-column:1 / -1; min-width:0; }
+.nexa-composer-details select { height:2.75rem; }
+.nexa-composer-billing { margin-top:1.5rem; }
+.nexa-composer-candidates { display:grid; gap:.25rem; margin-top:.5rem; }
+.nexa-composer-candidate { display:flex; min-width:0; cursor:pointer; align-items:center; gap:.75rem; padding:.625rem .75rem; border-radius:.375rem; background:var(--surface); border:1px solid transparent; }
+.nexa-composer-candidate[data-selected="true"] { background:color-mix(in srgb,var(--brand-cyan) 7%,var(--surface)); border-color:color-mix(in srgb,var(--brand-cyan) 24%,transparent); }
+.nexa-composer-candidate:focus-within { outline:2px solid var(--focus-ring); outline-offset:2px; }
+.nexa-composer-candidate input { width:1.125rem; height:1.125rem; }
+.nexa-composer-document { margin-top:1.5rem; padding:1rem; background:var(--surface); border-radius:.625rem; }
+.nexa-composer-section-heading { display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin-bottom:.75rem; }
+.nexa-composer-section-heading h2 { font-size:1rem; font-weight:600; }
+.nexa-composer-line-heading { display:none; }
+.nexa-composer-generated { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.375rem .75rem; align-items:center; padding:.75rem 0; border-top:1px solid var(--border-structural); }
+.nexa-composer-generated > :first-child { grid-column:1 / -1; }
+.nexa-composer-rate { font-size:.75rem; color:var(--text-secondary); font-variant-numeric:tabular-nums; }
+.nexa-composer-amount { font-size:.875rem; font-weight:600; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.nexa-invoice-composer .nexa-composer-remove { justify-self:end; font-size:.75rem; padding-inline:.375rem; white-space:nowrap; }
+.nexa-composer-generated .nexa-composer-remove { grid-column:2; }
+.nexa-invoice-composer .nexa-edit-line { grid-template-columns:repeat(3,minmax(0,1fr)); padding:.75rem 0; gap:.5rem; }
+.nexa-invoice-composer .nexa-edit-line > :first-child { grid-column:1 / -1; }
+.nexa-invoice-composer .nexa-edit-line > div { grid-column:1 / 3; align-self:center; display:flex; justify-content:space-between; gap:.5rem; }
+.nexa-invoice-composer .nexa-edit-line > div p { margin-top:0; }
+.nexa-invoice-composer .nexa-edit-line > button { grid-column:3; margin-top:0; align-self:end; }
+.nexa-invoice-composer .nexa-edit-line select { height:2.75rem; }
+.nexa-invoice-composer .nexa-edit-line label { font-size:.75rem; color:var(--text-secondary); }
+.nexa-composer-notes { margin-top:1.25rem; }
+.nexa-composer-note-fields { display:grid; gap:.75rem; margin-top:.75rem; }
+.nexa-composer-notes textarea { min-height:3.5rem; height:3.5rem; resize:vertical; }
+.nexa-composer-notes textarea:focus { min-height:5rem; }
+.nexa-composer-summary { min-width:0; padding:1.25rem; background:var(--surface); border-radius:.625rem; border-top:2px solid var(--border-control); }
+.nexa-composer-total { border-top:1px solid var(--border-structural); padding-top:1rem; font-size:1.375rem; font-weight:600; }
+.nexa-composer-save { display:grid; gap:.75rem; margin-top:1.5rem; }
+@container (min-width: 950px) {
+ .nexa-composer-layout { grid-template-columns:minmax(0,7fr) minmax(17rem,3fr); }
+ .nexa-composer-summary { position:sticky; top:1.5rem; }
+}
+@container composer-main (min-width: 580px) {
+ .nexa-composer-details { grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,.8fr); }
+ .nexa-composer-customer { grid-column:auto; }
+ .nexa-composer-document { padding:1.25rem; }
+ .nexa-composer-line-heading,.nexa-composer-generated { display:grid; grid-template-columns:minmax(0,1fr) 8rem 5.5rem 4.5rem; gap:.75rem; }
+ .nexa-composer-line-heading { font-size:.625rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-secondary); padding-bottom:.5rem; }
+ .nexa-composer-line-heading > :nth-child(3) { text-align:right; }
+ .nexa-composer-generated > :first-child,.nexa-composer-generated .nexa-composer-remove { grid-column:auto; }
+ .nexa-invoice-composer .nexa-edit-line { grid-template-columns:minmax(0,1fr) 3.5rem 4.5rem 4.5rem 5rem 4.5rem; align-items:end; }
+ .nexa-invoice-composer .nexa-edit-line > :first-child,.nexa-invoice-composer .nexa-edit-line > div,.nexa-invoice-composer .nexa-edit-line > button { grid-column:auto; }
+ .nexa-invoice-composer .nexa-edit-line > div { display:block; align-self:end; padding-bottom:.75rem; }
+ .nexa-invoice-composer .nexa-edit-line > div p { margin-top:1rem; }
+ .nexa-composer-note-fields { grid-template-columns:1fr 1fr; }
+}

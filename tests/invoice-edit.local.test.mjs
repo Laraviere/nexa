@@ -64,6 +64,20 @@ test("invoice editor: existing composition, legacy state, atomic edits and histo
   const readyPreview=await client.rpc("preview_invoice_edit",{p_invoice_id:invoiceId,p_as_of_date:"2025-09-01"});assert.equal(readyPreview.error,null);
   const readySaved=await edit({...payload,revision:readyPreview.data[0].revision,notes:"Ready edit"});assert.ok(readySaved.text.includes(invoiceId));
   const readyRead=(await client.from("invoices").select("status,invoice_number").eq("id",invoiceId).single()).data;assert.equal(readyRead.status,"ready");assert.equal(readyRead.invoice_number,invoice.invoice_number);
+  // Exercise the same omission payload used by Remove in the composer through
+  // the real authenticated action; history and the source row must survive.
+  const source=await client.from("time_entries").insert({customer_id:customer,work_date:"2025-08-01",description:"Removal regression source",actual_minutes:30,hourly_rate:120}).select("id").single();assert.equal(source.error,null);
+  const addPreview=await client.rpc("preview_invoice_edit",{p_invoice_id:invoiceId,p_as_of_date:"2025-09-01"});assert.equal(addPreview.error,null);
+  const hourly=addPreview.data[0].candidates.find(c=>c.source_type==="hourly_time");assert.ok(hourly);
+  const addSaved=await edit({...payload,revision:addPreview.data[0].revision,items:[],selected_candidate_ids:[hourly.candidate_id]});assert.ok(addSaved.text.includes(invoiceId));
+  const oldCustom=await client.from("invoice_items").select("superseded_at").eq("invoice_id",invoiceId).eq("source_type","manual");assert.ok(oldCustom.data.length>0&&oldCustom.data.every(i=>i.superseded_at));
+  const removalPreview=await client.rpc("preview_invoice_edit",{p_invoice_id:invoiceId,p_as_of_date:"2025-09-01"});assert.equal(removalPreview.error,null);
+  const removed=await edit({...payload,revision:removalPreview.data[0].revision,selected_candidate_ids:[],items:[{description:"Remaining custom",quantity:"1",unit:"each",unit_rate:"5"}]});assert.ok(removed.text.includes(invoiceId));
+  const released=await client.from("invoice_time_allocations").select("released_at").eq("time_entry_id",source.data.id);assert.ok(released.data.length>0&&released.data.every(a=>a.released_at));
+  const eligible=await client.rpc("preview_customer_invoice",{p_customer_id:customer,p_as_of_date:"2025-09-01"});assert.equal(eligible.error,null);assert.ok(eligible.data[0].candidates.some(c=>c.source_type==="hourly_time"&&c.billed_minutes===30));
+  assert.equal((await client.from("time_entries").select("id").eq("id",source.data.id).single()).data.id,source.data.id);
+  assert.equal((await client.from("invoice_totals").select("total").eq("invoice_id",invoiceId).single()).data.total,5);
+  t.diagnostic("Remove payload supersedes custom lines, releases generated claims, preserves source rows and restores invoice eligibility.");
   assert.equal((await client.from("invoices").update({status:"void",void_reason:"Lifecycle test"}).eq("id",invoiceId)).error,null);
   const voidPage=await page(`/invoices/${invoiceId}`);assert.match(voidPage,/>Void</);assert.ok(!/Edit Invoice|Mark Ready|Move to Draft/.test(voidPage));
   const voidEditor=await request(route);assert.ok(voidEditor.status===404||(await voidEditor.text()).includes("NEXT_HTTP_ERROR_FALLBACK;404"));

@@ -65,6 +65,25 @@ test('composer suggestions replace by context, default selected, stale refresh a
   pendingPreviews[1]({preview:{as_of_date:props.today,revision,candidates:[charge()]}});await Promise.resolve();tree=render();
   assert.equal(all(tree).find(n=>n.props?.type==='checkbox').props.checked,true);
   pendingPreviews[0]({preview:{as_of_date:props.today,revision:'c'.repeat(64),candidates:[]}});await Promise.resolve();tree=render();assert.match(text(tree),/Monthly IT Support Retainer/);
+  const itemSection=()=>all(tree).find(n=>n.props?.['aria-labelledby']==='invoice-lines-title');
+  const summary=()=>all(tree).find(n=>n.type==='aside');
+  const saveButton=()=>all(tree).find(n=>n.type?.name==='Button'&&text(n)==='Save Draft');
+  const currentPayload=()=>JSON.parse(all(tree).find(n=>n.props?.name==='payload').props.value);
+  assert.match(text(itemSection()),/Monthly IT Support Retainer/);
+  assert.match(text(summary()),/500\.00/);
+  all(tree).find(n=>n.props?.['aria-label']==='Remove Monthly IT Support Retainer').props.onClick();tree=render();
+  assert.equal(all(tree).find(n=>n.props?.type==='checkbox').props.checked,false);
+  assert.ok(!text(itemSection()).includes('Monthly IT Support Retainer'));
+  assert.match(text(summary()),/\$0\.00/);assert.equal(saveButton().props.disabled,true);
+  assert.match(text(tree),/Add or select at least one invoice item\./);
+  assert.deepEqual(currentPayload().selected_candidate_ids,[]);
+  all(tree).find(n=>n.type?.name==='Button'&&text(n)==='+ Add custom item').props.onClick();tree=render();
+  assert.equal(currentPayload().items.length,1);
+  all(tree).find(n=>n.props?.['aria-label']==='Remove custom item 1').props.onClick();tree=render();
+  assert.deepEqual(currentPayload().items,[]);assert.equal(saveButton().props.disabled,true);
+  all(tree).find(n=>n.props?.type==='checkbox').props.onChange({target:{checked:true}});tree=render();
+  assert.match(text(itemSection()),/Monthly IT Support Retainer/);assert.match(text(summary()),/500\.00/);
+  assert.equal(saveButton().props.disabled,false);assert.deepEqual(currentPayload().selected_candidate_ids,[candidate]);
   const checkbox=all(tree).find(n=>n.props?.type==='checkbox');checkbox.props.onChange({target:{checked:false}});tree=render();assert.equal(all(tree).find(n=>n.props?.type==='checkbox').props.checked,false);
   all(tree).find(n=>n.props?.type==='checkbox').props.onChange({target:{checked:true}});tree=render();
   const submit=async()=>{const f=new FormData();for(const n of all(tree).filter(n=>n.props?.type==='hidden'))f.set(n.props.name,n.props.value);await tree.props.action(f);tree=render();};
@@ -91,9 +110,16 @@ test('editor selects retained charges only and populates editable custom fields'
  const editing={invoiceId:id,draft:{customer_id:id,issue_date:'2025-09-01',as_of_date:'2025-09-15',notes:'Existing notes',terms:'Terms',items:[{description:'Original custom',quantity:'2',unit:'each',unit_rate:'5'}]}};
  function all(n){if(!n||typeof n!=='object')return [];return [n,...[n.props?.children].flat(Infinity).flatMap(all)];}
  function render(){cursor=0;const tree=Component({customers:[{id,company_name:'Snapshot',is_active:true,default_payment_terms_days:30,agreement:null}],today:'2025-09-15',initialRequestId:id,owner:'edit-test',editing});while(effects.length)effects.shift()();return tree;}
- render();render();await Promise.resolve();const tree=render();const nodes=all(tree);
+ render();render();await Promise.resolve();let tree=render();const nodes=all(tree);
  assert.deepEqual(nodes.filter(n=>n.props?.type==='checkbox').map(n=>n.props.checked),[true,false]);assert.equal(nodes.find(n=>(n.type==='select'||n.type?.name==='Select')).props.disabled,true);
  assert.ok(nodes.some(n=>(n.type==='input'||n.type?.name==='Input')&&n.props.value==='Original custom'));assert.ok(nodes.some(n=>(n.type==='button'||n.type?.name==='Button')&&n.props.children==='Save Changes'));
+ all(tree).find(n=>n.props?.['aria-label']==='Remove Original custom').props.onClick();tree=render();
+ all(tree).find(n=>n.props?.['aria-label']==='Remove Monthly IT Support Retainer').props.onClick();tree=render();
+ const removed=JSON.parse(all(tree).find(n=>n.props?.name==='payload').props.value);
+ assert.deepEqual(removed.items,[]);assert.deepEqual(removed.selected_candidate_ids,[]);
+ assert.deepEqual(removed.descriptions,{});
+ assert.equal(all(tree).find(n=>n.type?.name==='Button'&&n.props.children==='Save Changes').props.disabled,true);
+
 });
 test('compact composer intentionally discovers historical fees without selecting them; date changes discard late history',async()=>{
  const slots=[],effects=[],cleanup=[],reads=[],history=[];let cursor=0;
