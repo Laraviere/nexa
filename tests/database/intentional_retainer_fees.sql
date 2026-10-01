@@ -1,0 +1,44 @@
+begin;
+create function pg_temp.fee_assert(ok boolean,label text) returns void language plpgsql as $$begin if ok is distinct from true then raise exception 'FAIL: %',label;end if;end $$;
+set local role authenticated;
+do $$
+declare c uuid;a uuid;s record;h record;fee jsonb;v uuid;w uuid;old_count int;state jsonb;number_before int;
+begin
+ insert into public.customers(company_name) values('Intentional retainer fees') returning id into c;
+ insert into public.customer_billing_agreements(customer_id,effective_date,monthly_fee,included_hours,overage_hourly_rate,billing_cycle_day,bill_in_advance)
+ values(c,'2025-06-08',500,1,75,1,false) returning id into a;
+ select * into s from public.preview_customer_invoice(c,'2025-09-20');
+ perform pg_temp.fee_assert(jsonb_array_length(s.candidates)=1,'only current fee normally; no historical arrears');
+ fee:=s.candidates->0;
+ perform pg_temp.fee_assert(fee->>'period_start'='2025-09-01' and (fee->>'amount')::numeric=500,'current fee full amount midperiod despite arrears setting');
+ select * into h from public.preview_invoice_with_retainer_history(c,'2025-09-20');
+ perform pg_temp.fee_assert(h.revision=s.revision,'one atomic revision for normal and opt-in read');
+ perform pg_temp.fee_assert(jsonb_array_length(h.candidates)=4,'all three previous periods deliberately discoverable');
+ perform pg_temp.fee_assert(not exists(select from jsonb_array_elements(h.candidates) e where (e->>'period_start')::date>'2025-09-20'),'no future period');
+ select invoice_id into v from public.create_composed_invoice(c,'2025-09-20','2025-09-20',gen_random_uuid(),s.revision,array[fee->>'candidate_id'],'[]');
+ select invoice_number into number_before from public.invoices where id=v;
+ perform pg_temp.fee_assert((select jsonb_array_length(candidates)=0 from public.preview_customer_invoice(c,'2025-09-20')),'claimed current fee disappears');
+ begin perform public.create_composed_invoice(c,'2025-09-20','2025-09-20',gen_random_uuid(),s.revision,array[fee->>'candidate_id'],'[]');raise exception 'Duplicate accepted';
+ exception when sqlstate 'P0001' then if sqlerrm not like 'STALE_INVOICE_PREVIEW%' then raise;end if;end;
+ update public.invoices set status='void',void_reason='Fee release' where id=v;
+ perform pg_temp.fee_assert((select jsonb_array_length(candidates)=1 from public.preview_customer_invoice(c,'2025-09-20')),'void releases fee');
+ select * into h from public.preview_invoice_with_retainer_history(c,'2025-09-20');
+ select e into fee from jsonb_array_elements(h.candidates) e where e->>'period_start'='2025-06-08';
+ select invoice_id into w from public.create_composed_invoice(c,'2025-09-20','2025-09-20',gen_random_uuid(),h.revision,array[fee->>'candidate_id'],'[]');
+ perform pg_temp.fee_assert((select count(*)=1 and min(amount)=500 from public.invoice_items where invoice_id=w),'explicit clipped historical fee full amount');
+ state:=public.invoice_edit_preview_state(w,'2025-09-20');
+ perform public.update_composed_invoice(w,'2025-09-20','2025-09-20',gen_random_uuid(),state->>'revision','{}','[{"description":"Manual replacement","quantity":1,"unit":"each","unit_rate":20}]');
+ select * into h from public.preview_invoice_with_retainer_history(c,'2025-09-20',w);
+ perform pg_temp.fee_assert(exists(select from jsonb_array_elements(h.candidates) e where e->>'period_start'='2025-06-08'),'edit releases historical fee');
+ select e into fee from jsonb_array_elements(h.candidates) e where e->>'period_start'='2025-07-01';
+ perform public.update_composed_invoice(w,'2025-09-20','2025-09-20',gen_random_uuid(),h.revision,array[fee->>'candidate_id'],'[]');
+ perform pg_temp.fee_assert((select count(*)=1 from public.invoice_items where invoice_id=w and superseded_at is null and period_start='2025-07-01'),'historical fee can be added through edit RPC');
+ select * into s from public.generate_customer_invoice(c,'2025-09-20',gen_random_uuid(),'2025-09-20');
+ perform pg_temp.fee_assert((select count(*)=1 and min(period_start)='2025-09-01'::date from public.invoice_items where invoice_id=s.invoice_id),'generator never sweeps historical fees');
+ perform pg_temp.fee_assert((select invoice_number=number_before from public.invoices where id=v),'existing invoice numbering unchanged');
+ begin perform public.preview_invoice_with_retainer_history(c,(now() at time zone 'America/New_York')::date+1);raise exception 'Future date allowed';exception when sqlstate '22023' then null;end;
+ perform pg_temp.fee_assert(exists(select from pg_constraint where conname='invoice_items_retainer_fee_once'),'fee exclusion retained');
+ perform pg_temp.fee_assert(not has_function_privilege('anon','public.preview_invoice_with_retainer_history(uuid,date,uuid)','EXECUTE'),'anon cannot read history');
+end $$;
+set constraints all immediate;
+rollback;

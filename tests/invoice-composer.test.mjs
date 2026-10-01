@@ -69,7 +69,7 @@ test('composer suggestions replace by context, default selected, stale refresh a
   all(tree).find(n=>n.props?.type==='checkbox').props.onChange({target:{checked:true}});tree=render();
   const submit=async()=>{const f=new FormData();for(const n of all(tree).filter(n=>n.props?.type==='hidden'))f.set(n.props.name,n.props.value);await tree.props.action(f);tree=render();};
   await submit();assert.match(text(tree),/Billing activity changed/);assert.equal(all(tree).filter(n=>(n.type==='button'||n.type?.name==='Button')).at(-1).props.disabled,true);
-  all(tree).find(n=>(n.type==='button'||n.type?.name==='Button')&&text(n)==='Refresh charges').props.onClick();tree=render();
+  all(tree).find(n=>(n.type==='button'||n.type?.name==='Button')&&text(n)==='Refresh').props.onClick();tree=render();
   const freshRevision='d'.repeat(64);pendingPreviews[2]({preview:{as_of_date:props.today,revision:freshRevision,candidates:[charge(candidate,600)]}});await Promise.resolve();tree=render();assert.match(text(tree),/600/);
   nextSave={uncertain:true,message:'Retry same submission'};await submit();assert.equal(storage.size,1);assert.equal(all(tree).find(n=>n.type==='fieldset').props.disabled,true);
   const saved=saves.at(-1);slots.length=0;cleanup.forEach(fn=>fn?.());cleanup.length=0;tree=render();tree=render();
@@ -94,4 +94,45 @@ test('editor selects retained charges only and populates editable custom fields'
  render();render();await Promise.resolve();const tree=render();const nodes=all(tree);
  assert.deepEqual(nodes.filter(n=>n.props?.type==='checkbox').map(n=>n.props.checked),[true,false]);assert.equal(nodes.find(n=>(n.type==='select'||n.type?.name==='Select')).props.disabled,true);
  assert.ok(nodes.some(n=>(n.type==='input'||n.type?.name==='Input')&&n.props.value==='Original custom'));assert.ok(nodes.some(n=>(n.type==='button'||n.type?.name==='Button')&&n.props.children==='Save Changes'));
+});
+test('compact composer intentionally discovers historical fees without selecting them; date changes discard late history',async()=>{
+ const slots=[],effects=[],cleanup=[],reads=[],history=[];let cursor=0;
+ const react={useState(initial){const i=cursor++;if(!(i in slots))slots[i]=initial;return [slots[i],v=>slots[i]=typeof v==='function'?v(slots[i]):v];},useRef(initial){const i=cursor++;if(!(i in slots))slots[i]={current:initial};return slots[i];},useEffect(fn,deps){const i=cursor++;if(!slots[i]||deps.some((v,j)=>v!==slots[i][j])){slots[i]=deps;effects.push(()=>{cleanup[i]?.();cleanup[i]=fn();});}},useActionState(){cursor++;return [{},()=>{},false];}};
+ const current={...charge(),period_start:'2025-09-01',period_end:'2025-10-01'};
+ const overage={...charge('c'.repeat(64),281.25),source_type:'retainer_overage',billed_minutes:225,quantity:3.75,unit_rate:75,unit:'hour'};
+ const old={...charge('d'.repeat(64)),historical:true,period_start:'2025-08-01',period_end:'2025-09-01'};
+ const api={previewInvoice:async args=>{reads.push(args);return {preview:{revision,as_of_date:args.p_as_of_date,candidates:[current,overage]}};},previewRetainerHistory:(...args)=>new Promise(resolve=>history.push({args,resolve}))};
+ const h=harness({react,'next/navigation':{useRouter:()=>({})},'@/actions/invoice-composer':api});const Component=h.load('@/components/invoices/create-invoice-form').CreateInvoiceForm;
+ const props={customers:[{id,company_name:'Fixture',is_active:true,default_payment_terms_days:30,agreement:null}],today:'2025-09-20',initialRequestId:id,owner:'compact'};
+ const all=n=>!n||typeof n!=='object'?[]:[n,...[n.props?.children].flat(Infinity).flatMap(all)];
+ const text=n=>n==null||typeof n==='boolean'?'':typeof n!=='object'?String(n):[n.props?.children].flat(Infinity).map(text).join(' ');
+ const render=()=>{cursor=0;const tree=Component(props);while(effects.length)effects.shift()();return tree;};
+ const button=(tree,label)=>all(tree).find(n=>n.type?.name==='Button'&&text(n)===label);
+ const payload=tree=>JSON.parse(all(tree).find(n=>n.props?.name==='payload').props.value);
+ let tree=render();tree=render();all(tree).find(n=>n.type?.name==='Select').props.onChange({target:{value:id}});render();await Promise.resolve();tree=render();
+ assert.match(text(tree),/Billing available/);assert.match(text(tree),/Billing through/);assert.match(text(tree),/IT Support Overage/);assert.doesNotMatch(text(tree),/Selected charges|Manual line items/);
+ assert.equal(payload(tree).items.length,0);assert.deepEqual(payload(tree).selected_candidate_ids,[candidate,overage.candidate_id]);
+ all(tree).find(n=>n.props?.type==='checkbox').props.onChange({target:{checked:false}});tree=render();
+ assert.deepEqual(payload(tree).selected_candidate_ids,[overage.candidate_id]);
+ const discover=button(tree,'View unbilled retainer periods').props.onClick();tree=render();assert.match(text(tree),/Loading previous periods/);
+ history[0].resolve({preview:{revision,as_of_date:props.today,candidates:[current,overage,old]}});await discover;tree=render();
+ assert.deepEqual(all(tree).filter(n=>n.props?.type==='checkbox').map(n=>n.props.checked),[false,true,false]);
+ assert.deepEqual(payload(tree).selected_candidate_ids,[overage.candidate_id]);
+ all(tree).filter(n=>n.props?.type==='checkbox')[2].props.onChange({target:{checked:true}});tree=render();assert.deepEqual(payload(tree).selected_candidate_ids,[overage.candidate_id,old.candidate_id]);
+ button(tree,'+ Add custom item').props.onClick();tree=render();assert.equal(payload(tree).items.length,1);
+ assert.ok(all(tree).some(n=>n.props?.placeholder==='Describe the item'));
+ button(tree,'Refresh').props.onClick();render();await Promise.resolve();tree=render();
+ const late=button(tree,'View unbilled retainer periods').props.onClick();
+ all(tree).find(n=>n.props?.type==='date'&&n.props.max).props.onChange({target:{value:'2025-09-19'}});render();await Promise.resolve();tree=render();
+ history[1].resolve({preview:{revision,as_of_date:props.today,candidates:[current,overage,old]}});await late;tree=render();
+ assert.equal(reads.at(-1).p_as_of_date,'2025-09-19');assert.equal(all(tree).filter(n=>n.props?.type==='checkbox').length,2);
+ const changed=button(tree,'View unbilled retainer periods').props.onClick();history[2].resolve({preview:{revision:'e'.repeat(64),as_of_date:'2025-09-19',candidates:[old]}});await changed;tree=render();
+ assert.match(text(tree),/Billing activity changed/);assert.equal(button(tree,'Save Draft').props.disabled,true);
+});
+
+test('historical discovery uses only the authenticated read RPC and validates context',async()=>{
+ const h=harness();h.setResult({revision,as_of_date:'2025-09-15',candidates:[]});
+ assert.ok((await h.actions.previewRetainerHistory(id,'2025-09-15',id)).preview);
+ assert.deepEqual(h.calls,[["preview_invoice_with_retainer_history",{p_customer_id:id,p_as_of_date:'2025-09-15',p_invoice_id:id}]]);
+ assert.ok((await h.actions.previewRetainerHistory('invalid','2025-09-15')).message);assert.equal(h.calls.length,1);
 });

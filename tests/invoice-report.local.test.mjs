@@ -48,7 +48,7 @@ test('invoice reporting UI: authenticated filters, full aggregates, sorting, his
    else assert.ok(html.includes('No invoices match these filters.'));
    return {html,expected};
   }
-  const all=await verify();assert.equal(all.expected.total_rows,27);assert.equal(all.expected.rows.length,25);assert.equal(all.expected.total_pages,2);assert.ok(all.html.includes('Renamed reporting customer (Archived)'));assert.ok(all.html.includes(originalName));assert.ok(all.html.includes('New Invoice'));assert.match(all.html,/name="from"[^>]*value=""/);assert.match(all.html,/name="to"[^>]*value=""/);assert.ok(all.html.includes('@min-[680px]:block'));assert.ok(all.html.includes('aria-label="Invoice cards"'));assert.ok(all.html.includes('@min-[680px]:hidden'));
+  const all=await verify();assert.equal(all.expected.total_rows,27);assert.equal(all.expected.rows.length,25);assert.equal(all.expected.total_pages,2);assert.ok(all.html.includes('Renamed reporting customer (Archived)'));assert.ok(all.html.includes(originalName));assert.ok(all.html.includes('New Invoice'));assert.match(all.html,/name="from"[^>]*value=""/);assert.match(all.html,/name="to"[^>]*value=""/);assert.ok(all.html.includes('nexa-table-frame'));assert.ok(all.html.includes('aria-label="Invoice cards"'));assert.ok(all.html.includes('nexa-records'));
   await verify({q:String(invoices[1].invoice_number)});await verify({q:originalName});
   for(const workflow of ['draft','ready','sent','void'])await verify({workflow});
   for(const payment of ['unpaid','partially_paid','paid'])await verify({payment});

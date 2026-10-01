@@ -44,8 +44,8 @@ test("generated invoices: authenticated actions, relevant periods, empty outcome
   const first=await generate(payload);const stored=await client.from("invoices").select("*").eq("creation_request_id",first.requestId).single();assert.equal(stored.error,null);const invoice=stored.data;invoiceIds.push(invoice.id);assert.ok(first.text.includes(invoice.id));assert.equal(invoice.status,"draft");
   const retry=await generate(payload,first.requestId);assert.ok(retry.text.includes(invoice.id));assert.equal((await client.from("invoices").select("id").eq("creation_request_id",first.requestId)).data.length,1);
   const items=(await client.from("invoice_items").select("*").eq("invoice_id",invoice.id).order("position")).data;
-  assert.deepEqual(items.map(i=>i.source_type),["retainer_fee","retainer_overage"]);assert.deepEqual(items.map(i=>i.period_start),["2025-09-15","2025-08-15"]);assert.equal(items[1].amount,60);
-  let detail=await page(`/invoices/${invoice.id}`);assert.match(detail,/Monthly IT Support Retainer/);assert.match(detail,/IT Support Overage/);assert.match(detail,/\$560\.00/);assert.match(detail,/>Draft</);
+  assert.deepEqual(items.map(i=>i.source_type),["retainer_fee","retainer_overage","retainer_overage"]);assert.deepEqual(items.map(i=>i.period_start),["2025-09-15","2025-09-15","2025-08-15"]);assert.equal(items[1].amount,60);
+  let detail=await page(`/invoices/${invoice.id}`);assert.match(detail,/Monthly IT Support Retainer/);assert.match(detail,/IT Support Overage/);assert.match(detail,/\$620\.00/);assert.match(detail,/>Draft</);
   assert.ok((await page(`/invoices?q=${invoice.invoice_number}`)).includes(`href="/invoices/${invoice.id}"`));assert.match(await page("/invoices"),/New Invoice/);assert.match(await page("/invoices"),/New Invoice/);
   const empty=await generate(payload);assert.match(empty.text,/There is nothing eligible to invoice/);assert.equal((await client.from("invoices").select("id").eq("creation_request_id",empty.requestId)).data.length,0);
   assert.equal((await client.from("invoice_items").select("id").eq("billing_agreement_id",a.data.id).lt("period_start","2025-08-15")).data.length,0);
@@ -54,7 +54,7 @@ test("generated invoices: authenticated actions, relevant periods, empty outcome
   for(const [actual_minutes,hourly_rate] of [[18,120],[60,120],[30,150]]){const r=await client.from("time_entries").insert({customer_id:hourly,work_date:"2025-06-01",description:"Historical hourly fixture",actual_minutes,hourly_rate});assert.equal(r.error,null);}
   const generated=await generate({...payload,customer_id:hourly});const hourlyInvoice=await client.from("invoices").select("id,status").eq("creation_request_id",generated.requestId).single();assert.equal(hourlyInvoice.error,null);invoiceIds.push(hourlyInvoice.data.id);assert.equal(hourlyInvoice.data.status,"draft");
   const hourlyItems=(await client.from("invoice_items").select("*").eq("invoice_id",hourlyInvoice.data.id).order("position")).data;assert.deepEqual(hourlyItems.map(i=>i.billed_minutes),[90,30]);assert.deepEqual(hourlyItems.map(i=>i.amount),[180,75]);assert.match(await page(`/invoices/${hourlyInvoice.data.id}`),/\$255\.00/);
-  t.diagnostic("Protected route/actions, required fields, NY defaults, current fee/prior overage, no in-progress or historical catch-up, hourly grouping, empty result, exact retry, draft detail/list and finalization passed.");
+  t.diagnostic("Protected route/actions, required fields, NY defaults, current fee/current and prior overage, no historical catch-up, hourly grouping, empty result, exact retry, draft detail/list and finalization passed.");
  } finally {
   // Invoice history is intentionally nondeletable. Keep only archived/void
   // synthetic fixtures locally; never disable triggers or change schema to clean up.

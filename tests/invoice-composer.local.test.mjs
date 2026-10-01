@@ -32,9 +32,9 @@ test("composer UI: authenticated preview, selection, mixed save, staleness and a
   const registration=await client.auth.signUp({email:`nexa-generation-${randomBytes(8).toString("hex")}@example.test`,password:randomBytes(24).toString("base64url")});assert.equal(registration.error,null);userId=registration.data.user.id;
   async function fixture(name){const r=await client.from("customers").insert({company_name:name}).select().single();assert.equal(r.error,null);customerIds.push(r.data.id);return r.data.id;}
   customer=await fixture("Local generation retainer");
-  const a=await client.from("customer_billing_agreements").insert({customer_id:customer,monthly_fee:500,included_hours:1,overage_hourly_rate:120,billing_cycle_day:15,effective_date:"2025-06-15"}).select().single();assert.equal(a.error,null);
+  const a=await client.from("customer_billing_agreements").insert({customer_id:customer,monthly_fee:500,bill_in_advance:false,included_hours:1,overage_hourly_rate:120,billing_cycle_day:15,effective_date:"2025-06-15"}).select().single();assert.equal(a.error,null);
   for(const work_date of ["2025-07-16","2025-08-16","2025-09-16"]){const r=await client.from("time_entries").insert({customer_id:customer,work_date,description:"Local generation usage",actual_minutes:90});assert.equal(r.error,null);}
-  const formPage=await page("/invoices/new");assert.match(formPage,/Suggested charges/);
+  const formPage=await page("/invoices/new");assert.match(formPage,/Billing available/);
   const parts=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const part=k=>parts.find(p=>p.type===k).value;const today=`${part("year")}-${part("month")}-${part("day")}`;
   assert.ok(formPage.includes(`&quot;issue_date&quot;:&quot;${today}&quot;`));assert.ok(formPage.includes(`&quot;as_of_date&quot;:&quot;${today}&quot;`));
   const payload={customer_id:customer,issue_date:"2025-09-20",as_of_date:"2025-09-20",notes:"Composed fixture",terms:"Review first",items:[]};
@@ -44,7 +44,7 @@ test("composer UI: authenticated preview, selection, mixed save, staleness and a
   }
   const previewText=await preview();assert.match(previewText,/Monthly IT Support Retainer/);assert.match(previewText,/IT Support Overage/);
   const initial=(await client.rpc("preview_customer_invoice",{p_customer_id:customer,p_as_of_date:"2025-09-20"})).data[0];
-  assert.equal(initial.candidates.length,2);
+  assert.equal(initial.candidates.length,3);
   const fee=initial.candidates.find(c=>c.source_type==="retainer_fee"),overage=initial.candidates.find(c=>c.source_type==="retainer_overage");
   payload.revision=initial.revision;payload.selected_candidate_ids=[overage.candidate_id];
   payload.items=[{description:"Custom alongside overage",quantity:"1",unit:"each",unit_rate:"40"}];
@@ -54,13 +54,17 @@ test("composer UI: authenticated preview, selection, mixed save, staleness and a
   const first=await generate(payload);const stored=await client.from("invoices").select("*").eq("creation_request_id",first.requestId).single();assert.equal(stored.error,null);const invoice=stored.data;invoiceIds.push(invoice.id);assert.ok(first.text.includes(invoice.id));assert.equal(invoice.status,"draft");
   const retry=await generate(payload,first.requestId);assert.ok(retry.text.includes(invoice.id));assert.equal((await client.from("invoices").select("id").eq("creation_request_id",first.requestId)).data.length,1);
   const items=(await client.from("invoice_items").select("*").eq("invoice_id",invoice.id).order("position")).data;
-  assert.deepEqual(items.map(i=>i.source_type),["retainer_overage","manual"]);assert.deepEqual(items.map(i=>i.period_start),["2025-08-15",null]);assert.equal(items[0].amount,60);
+  assert.deepEqual(items.map(i=>i.source_type),["retainer_overage","manual"]);assert.deepEqual(items.map(i=>i.period_start),["2025-09-15",null]);assert.equal(items[0].amount,60);
   let detail=await page(`/invoices/${invoice.id}`);assert.match(detail,/Custom alongside overage/);assert.match(detail,/IT Support Overage/);assert.match(detail,/\$100\.00/);assert.match(detail,/>Draft</);
   assert.ok((await page(`/invoices?q=${invoice.invoice_number}`)).includes(`href="/invoices/${invoice.id}"`));assert.match(await page("/invoices"),/New Invoice/);assert.match(await page("/invoices"),/New Invoice/);
   const stale=await generate(payload);assert.match(stale.text,/Billing activity changed since this invoice was prepared/);
-  const fresh=(await client.rpc("preview_customer_invoice",{p_customer_id:customer,p_as_of_date:"2025-09-20"})).data[0];assert.equal(fresh.candidates.length,1);assert.equal(fresh.candidates[0].candidate_id,fee.candidate_id);assert.notEqual(fresh.revision,initial.revision);
+  const fresh=(await client.rpc("preview_customer_invoice",{p_customer_id:customer,p_as_of_date:"2025-09-20"})).data[0];assert.equal(fresh.candidates.length,2);assert.equal(fresh.candidates[0].candidate_id,fee.candidate_id);assert.notEqual(fresh.revision,initial.revision);
   const feeOnly=await generate({...payload,revision:fresh.revision,selected_candidate_ids:[fee.candidate_id],items:[]});
   const feeInvoice=(await client.from("invoices").select("id").eq("creation_request_id",feeOnly.requestId).single()).data;invoiceIds.push(feeInvoice.id);assert.match(await page(`/invoices/${feeInvoice.id}`),/Monthly IT Support Retainer/);
+  const priorPreview=(await client.rpc("preview_customer_invoice",{p_customer_id:customer,p_as_of_date:payload.as_of_date})).data[0];
+  assert.equal(priorPreview.candidates.length,1);assert.equal(priorPreview.candidates[0].period_start,"2025-08-15");
+  const prior=await generate({...payload,revision:priorPreview.revision,selected_candidate_ids:[priorPreview.candidates[0].candidate_id],items:[]});
+  const priorInvoice=(await client.from("invoices").select("id").eq("creation_request_id",prior.requestId).single()).data;invoiceIds.push(priorInvoice.id);
   const emptyPreview=(await client.rpc("preview_customer_invoice",{p_customer_id:customer,p_as_of_date:"2025-09-20"})).data[0];assert.equal(emptyPreview.candidates.length,0);
   const empty=await generate({...payload,revision:emptyPreview.revision,selected_candidate_ids:[],items:[]});assert.match(empty.text,/Add or select at least one invoice item/);
   const customOnly=await generate({...payload,revision:emptyPreview.revision,selected_candidate_ids:[]});const customInvoice=(await client.from("invoices").select("id").eq("creation_request_id",customOnly.requestId).single()).data;invoiceIds.push(customInvoice.id);
@@ -71,6 +75,24 @@ test("composer UI: authenticated preview, selection, mixed save, staleness and a
   const hourlyPreview=(await client.rpc("preview_customer_invoice",{p_customer_id:hourly,p_as_of_date:payload.as_of_date})).data[0];
   const generated=await generate({...payload,customer_id:hourly,revision:hourlyPreview.revision,selected_candidate_ids:hourlyPreview.candidates.map(c=>c.candidate_id),items:[]});const hourlyInvoice=await client.from("invoices").select("id,status").eq("creation_request_id",generated.requestId).single();assert.equal(hourlyInvoice.error,null);invoiceIds.push(hourlyInvoice.data.id);assert.equal(hourlyInvoice.data.status,"draft");
   const hourlyItems=(await client.from("invoice_items").select("*").eq("invoice_id",hourlyInvoice.data.id).order("position")).data;assert.deepEqual(hourlyItems.map(i=>i.billed_minutes),[90,30]);assert.deepEqual(hourlyItems.map(i=>i.amount),[180,75]);assert.match(await page(`/invoices/${hourlyInvoice.data.id}`),/\$255\.00/);
+  // Older fees are absent from normal preview and require explicit selection.
+  const historyResponse=await request("/invoices/new",{method:"POST",headers:{"Next-Action":actionId("previewRetainerHistory"),Accept:"text/x-component"},body:await encodeReply([customer,payload.as_of_date])});
+  assert.match(await historyResponse.text(),/"historical":true/);
+  const history=(await client.rpc("preview_invoice_with_retainer_history",{p_customer_id:customer,p_as_of_date:payload.as_of_date})).data[0];
+  const missed=history.candidates.find(c=>c.historical&&c.period_start==="2025-06-15");assert.ok(missed);assert.equal(missed.amount,500);
+  const historicalSave=await generate({...payload,revision:history.revision,selected_candidate_ids:[missed.candidate_id],items:[]});
+  const historicalInvoice=(await client.from("invoices").select("id").eq("creation_request_id",historicalSave.requestId).single()).data;assert.ok(historicalInvoice);invoiceIds.push(historicalInvoice.id);
+  const historicalLine=(await client.from("invoice_items").select("period_start,amount").eq("invoice_id",historicalInvoice.id).single()).data;assert.equal(historicalLine.period_start,"2025-06-15");assert.equal(historicalLine.amount,500);
+  // Supplemental context uses its own authenticated read, never the candidate payload.
+  async function context(id,date=today,auth=true){
+    const response=await request("/invoices/new",{method:"POST",headers:{"Next-Action":actionId("loadInvoiceRetainerContext"),Accept:"text/x-component"},body:await encodeReply([id,date])},auth);
+    return {response,text:await response.text()};
+  }
+  const usageEntry=await client.from("time_entries").insert({customer_id:customer,work_date:today,description:"Current retainer context fixture",actual_minutes:285});assert.equal(usageEntry.error,null);
+  const current=await context(customer);assert.match(current.text,/"status":"ready"/);assert.match(current.text,/"rounded_minutes_used":285/);assert.match(current.text,/"overage_minutes":225/);assert.ok(!current.text.includes('candidate_id'));
+  assert.match((await context(hourly)).text,/"status":"none"/);
+  assert.match((await context(customer,"2025-09-20")).text,/"status":"none"/);
+  const unauthContext=await context(customer,today,false);assert.ok(unauthContext.response.headers.get("x-action-redirect")?.includes("/login"));
   t.diagnostic("Authenticated preview/actions, current fee/prior overage, mixed/custom/suggested-only saves, deselection remains available, claims disappear, stale refresh, hourly grouping, empty selection, retries, authoritative draft totals/list and approval passed.");
  } finally {
   // Invoice history is intentionally nondeletable. Keep only archived/void

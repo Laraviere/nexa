@@ -35,3 +35,8 @@
  .nexa-form-actions > .nexa-button { flex:1 1 100%; }
  .nexa-edit-line { grid-template-columns:minmax(0,1fr); }
 }
+
+/* Compact invoice composition, retaining existing control and mobile sizing. */
+.nexa-invoice-composer .nexa-edit-line { padding:.625rem 0; gap:.5rem .75rem; }
+.nexa-invoice-composer .nexa-form-summary { padding:0; border:0; background:transparent; }
+.nexa-invoice-composer .nexa-form-actions { margin-top:1rem; }

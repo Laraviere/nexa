@@ -1,3 +1,4 @@
+import { isBusinessDate } from "@/lib/billing/validation";
 import type { Database } from "@/types/database";
 import { invoiceInput,type Draft } from "@/lib/invoices/model";
 import { generationInput } from "@/lib/invoices/generation";
@@ -8,17 +9,19 @@ export type ComposerResult = Database["public"]["Functions"]["create_composed_in
 export const chargeLabels = {retainer_fee:"Monthly retainer",retainer_overage:"Overage",hourly_time:"Hourly support"} as const;
 // The generated candidate field is JSON. Decode the display fields at the boundary;
 // this is a UI projection, not a replacement for either generated RPC contract.
-export type Charge = {candidate_id:string;source_type:keyof typeof chargeLabels;description:string;quantity:number;unit:string;unit_rate:number;amount:number;billed_minutes?:number;retained?:boolean;tax_amount?:number};
+export type Charge = {candidate_id:string;source_type:keyof typeof chargeLabels;description:string;quantity:number;unit:string;unit_rate:number;amount:number;billed_minutes?:number;retained?:boolean;tax_amount?:number;historical?:boolean;period_start?:string;period_end?:string};
 export function readCharges(value: PreviewResult["candidates"]): Charge[] | null {
   if (!Array.isArray(value)) return null;
   const charges: Charge[] = [];
   for (const v of value) {
     if (!v || typeof v!=="object" || Array.isArray(v) || typeof v.candidate_id!=="string" || !/^[0-9a-f]{64}$/.test(v.candidate_id)
+      || (v.period_start!==undefined && (typeof v.period_start!=="string" || !isBusinessDate(v.period_start)))
+      || (v.period_end!==undefined && (typeof v.period_end!=="string" || !isBusinessDate(v.period_end)))
       || typeof v.source_type!=="string" || !Object.hasOwn(chargeLabels,v.source_type) || typeof v.description!=="string" || typeof v.unit!=="string"
       || ![v.quantity,v.unit_rate,v.amount].every(n=>typeof n==="number" && Number.isFinite(n) && n>=0)
       || (v.billed_minutes!==undefined && (typeof v.billed_minutes!=="number" || !Number.isSafeInteger(v.billed_minutes) || v.billed_minutes<0))) return null;
     charges.push({candidate_id:v.candidate_id,source_type:v.source_type as Charge["source_type"],description:v.description,unit:v.unit,
-      quantity:v.quantity as number,unit_rate:v.unit_rate as number,amount:v.amount as number,billed_minutes:v.billed_minutes as number|undefined,retained:v.retained===true,tax_amount:typeof v.tax_amount==="number"?v.tax_amount:0});
+      quantity:v.quantity as number,unit_rate:v.unit_rate as number,amount:v.amount as number,billed_minutes:v.billed_minutes as number|undefined,retained:v.retained===true,historical:v.historical===true,period_start:typeof v.period_start==='string'?v.period_start:undefined,period_end:typeof v.period_end==='string'?v.period_end:undefined,tax_amount:typeof v.tax_amount==="number"?v.tax_amount:0});
   }
   return new Set(charges.map(c=>c.candidate_id)).size===charges.length?charges:null;
 }

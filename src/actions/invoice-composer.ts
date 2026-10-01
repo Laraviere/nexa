@@ -58,3 +58,15 @@ export async function updateComposedInvoice(_previous:ComposerState,form:FormDat
     return {invoiceId:result.invoice_id};
   }catch{return {message:"We could not confirm the edit. Retry this same submission.",uncertain:true};}
 }
+
+// Explicit opt-in discovery; normal preview never floods the composer with old fees.
+export async function previewRetainerHistory(customerId:string,asOf:string,invoiceId?:string):Promise<PreviewState> {
+  const client=await customerClient();
+  if(!isCustomerId(customerId)||!previewDueDate(asOf,0)||(invoiceId!==undefined&&!isCustomerId(invoiceId))) return {message:"Choose a customer and a valid billing date."};
+  try {
+    const {data,error}=await client.rpc("preview_invoice_with_retainer_history",{p_customer_id:customerId,p_as_of_date:asOf,...(invoiceId?{p_invoice_id:invoiceId}:{})});
+    const result=data?.[0];
+    if(error||!result||readCharges(result.candidates)===null||!/^[0-9a-f]{64}$/.test(result.revision))return {message:"Unable to load previous retainer periods. Please try again."};
+    return {preview:result};
+  }catch{return {message:"Unable to load previous retainer periods. Please try again."};}
+}

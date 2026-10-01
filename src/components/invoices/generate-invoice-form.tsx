@@ -64,7 +64,7 @@ export function GenerateInvoiceForm({customers,today,initialRequestId,owner,init
       </div>
       <div className="grid gap-5 sm:grid-cols-2">{(["notes","terms"] as const).map(key=><label key={key} className="min-w-0 text-sm font-medium">{key==="notes"?"Notes":"Terms"} <span className="font-normal text-slate-500">(optional)</span><textarea rows={3} maxLength={10000} className={input} value={draft[key]} onChange={e=>setDraft({...draft,[key]:e.target.value})}/></label>)}</div>
     </fieldset>
-    <p className="border-t border-slate-200 pt-4 text-sm text-slate-500">May include the relevant retainer fee, completed prior-period overage, and eligible hourly time. Older missed retainer periods are not included. Review and edit the saved invoice anytime.</p>
+    <p className="border-t border-slate-200 pt-4 text-sm text-slate-500">May include the current unclaimed retainer fee, unclaimed current and prior-period overage, and eligible hourly time. Older missed retainer periods are not included. Review and edit the saved invoice anytime.</p>
     <button disabled={!ready||pending||!!state.invoiceId} className="w-full rounded-lg bg-cyan-400 px-5 py-3 font-semibold disabled:opacity-50 sm:w-auto">{pending?"Saving…":state.invoiceId?"Opening invoice…":restored||state.uncertain?"Retry same submission":"Save Draft"}</button>
   </form>;
 }
